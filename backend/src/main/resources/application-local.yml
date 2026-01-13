@@ -1,0 +1,24 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:${POSTGRES_PORT:5432}/${POSTGRES_DB:jira_lite} # postgres url
+    username: ${POSTGRES_USER:jira_lite} # postgres username
+    password: ${POSTGRES_PASSWORD:jira_lite_password} # postgres password
+    driver-class-name: org.postgresql.Driver # postgres driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none # disable ddl auto
+    open-in-view: false # open in view is false by default
+    properties:
+      hibernate:
+        format_sql: true # format sql
+
+  flyway:
+    enabled: true # enable flyway
+    locations: classpath:db/migration # flyway locations  (db/migration is the default location)
+    baseline-on-migrate: true # baseline on migrate
+
+logging:
+  level:
+    org.flywaydb: INFO # flyway level
+    org.hibernate.SQL: INFO # hibernate sql level
