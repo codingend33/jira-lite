@@ -1,0 +1,13 @@
+spring:
+  application:
+    name: jira-lite # spring project name
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false # write dates as timestamps
+
+server:
+  port: ${SERVER_PORT:8080} # server port
+# Note:
+# - Do not hardcode local DB settings here.
+# - Use profile "local" to run with local Postgres.
+

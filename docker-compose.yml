@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: jira_lite_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-jira_lite} # postgres database
+      POSTGRES_USER: ${POSTGRES_USER:-jira_lite} # postgres username
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-jira_lite_password} # postgres password
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432" # postgres port
+    volumes:
+      - jira_lite_pg_data:/var/lib/postgresql/data # postgres data volume
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-jira_lite} -d ${POSTGRES_DB:-jira_lite}"] # postgres healthcheck
+      interval: 5s # healthcheck interval
+      timeout: 3s # healthcheck timeout
+      retries: 20 # healthcheck retries
+
+volumes:
+  jira_lite_pg_data: # postgres data volume
