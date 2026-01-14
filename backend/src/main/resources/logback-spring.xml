@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty name="logLevel" source="logging.level.root" defaultValue="INFO"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder> 
+            <!-- log the trace ID in the logs. 
+            this is used to identify the request in the logs. 
+            %X{traceId} is the trace ID from the MDC.
+            %msg%n is the message to log.
+            %d{yyyy-MM-dd HH:mm:ss.SSS} is the date and time.
+            [%thread] is the thread name.
+            %-5level is the log level.
+            %logger{36} is the logger name.
+            - traceId=%X{traceId} is the trace ID.
+            - %msg%n is the message to log.
+            -->
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - traceId=%X{traceId} - %msg%n</pattern> 
+        </encoder>
+    </appender>
+
+    <root level="${logLevel}">
+        <appender-ref ref="CONSOLE" />
+    </root>
+</configuration>
+
