@@ -172,3 +172,78 @@ ArchUnit tests enforce:
 - Internal errors return unified format with matching traceId
 - Successful echo returns response with matching traceId
 - Malformed JSON returns BAD_REQUEST error
+
+## Day 3: Database ERD Finalization + Flyway Core Tables (2026-01-15)
+
+### Tool
+
+GitHub Copilot Agent
+
+### Prompt Summary
+
+Design comprehensive Entity Relationship Diagram (ERD) for multi-tenant Jira Lite system with:
+- Complete ERD covering 7 core entities (org, app_user, org_membership, project, ticket, ticket_comment, ticket_attachment)
+- Multi-tenant isolation strategy (org_id on every tenant-owned table)
+- Flyway migration extension with schema enhancements
+- Detailed documentation with Chinese explanations and query pattern analysis
+- Index optimization for common query scenarios
+- Complete audit trail (timestamps on all tables)
+
+### Task Complexity
+
+Medium - Focused documentation and schema enhancement:
+- Mermaid ERD diagram with 7+ entities and relationships
+- Multi-tenant isolation rationale explanation
+- Query pattern analysis with index justification
+- Flyway V2 migration with selective table enhancements
+- Index optimization for common queries
+
+### Components Adopted
+
+#### Documentation (1 new file)
+
+1. **docs/design/erd.md** - Complete ERD with:
+   - Mermaid diagram showing all 7 entities and relationships
+   - Detailed table documentation (Chinese) with:
+     - Table purpose
+     - Key fields (PK/FK/UK/CHECK, org_id strategy)
+     - Relationship descriptions
+   - Multi-tenant isolation rationale:
+     - Data security via org_id enforcement
+     - Query performance benefits
+     - Simplified foreign key design with composite keys (org_id, id)
+     - Industry best practice alignment
+   - 6 common query patterns with SQL examples:
+     - List projects by organization
+     - List tickets by project with filtering/sorting
+     - Get ticket detail with comments and attachments
+     - Get ticket attachments list
+     - Get user's organizations (cross-tenant)
+     - Get organization members (multi-org context)
+   - Index design summary table:
+     - org_id indexes (tenant isolation)
+     - Composite indexes (org_id, project_id, status) for complex queries
+     - Timestamp indexes for ordering/pagination
+     - FK destination indexes for join optimization
+
+#### Database Migration (1 new file)
+
+1. **V2__core_domain_enhancements.sql** - Flyway migration adding:
+   - org_membership.status (ACTIVE|INVITED|DISABLED) with CHECK
+   - org_membership.updated_at for audit trail
+   - app_user.cognito_sub for AWS Cognito integration
+   - ticket_comments.updated_at for audit trail
+   - ticket_attachments.upload_status (PENDING|UPLOADED|FAILED) with CHECK
+   - ticket_attachments.updated_at for audit trail
+   - Composite index (org_id, project_id, status) for ticket filtering
+   - Index on ticket.updated_at DESC for recent ordering
+   - Composite index (ticket_id, created_at) for comment pagination
+   - Composite index (ticket_id, created_at) for attachment pagination
+   - Index on project.created_by for user's projects listing
+
+### Files Created/Modified
+
+1. **docs/design/erd.md** (new) - ERD documentation
+2. **backend/src/main/resources/db/migration/V2__core_domain_enhancements.sql** (new)
+3. **docs/ai/prompt-log.md** (updated) - This log entry
+
