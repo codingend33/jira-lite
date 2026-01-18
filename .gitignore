@@ -4,3 +4,8 @@
 # Build outputs
 target/
 
+# Local AI notes/instructions (do not commit)
+AI_Instruction.md
+
+# AI prompt logs (do not commit)
+docs/ai/prompt-log.md

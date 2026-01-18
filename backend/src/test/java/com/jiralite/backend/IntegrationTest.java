@@ -11,16 +11,19 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jiralite.backend.security.TestJwtDecoderConfig;
 
 /**
  * Integration tests for unified error handling and trace ID propagation.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
+@Import(TestJwtDecoderConfig.class)
 class IntegrationTest {
 
     @Autowired
@@ -32,6 +35,7 @@ class IntegrationTest {
     private HttpEntity<String> createJsonRequest(String jsonBody) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth("admin-token");
         return new HttpEntity<>(jsonBody, headers);
     }
 

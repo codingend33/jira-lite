@@ -8,7 +8,10 @@ import org.springdoc.core.properties.SpringDocConfigProperties;
 
 import com.jiralite.backend.filter.TraceIdFilter;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 
 /**
  * Configuration for OpenAPI/Swagger and filters.
@@ -22,10 +25,17 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
+                .components(new Components()
+                        .addSecuritySchemes("bearerAuth",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")))
+                .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .info(new Info()
                         .title("Jira Lite API")
                         .version("1.0.0")
-                        .description("Day 2 backend baseline API"));
+                        .description("Day 4 auth + RBAC + tenant context API"));
     }
 
     /**

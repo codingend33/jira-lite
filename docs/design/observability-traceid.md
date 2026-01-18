@@ -51,7 +51,7 @@ The `logback-spring.xml` configuration includes `traceId` in all log outputs:
 2026-01-13 14:30:45.123 [main] INFO  com.jiralite.backend.controller.DemoController - traceId=a1b2c3d4-e5f6-4g7h-8i9j-0k1l2m3n4o5p - Echo request received
 ```
 
-This enables correlation between logs and requests for debugging.
+This enables correlation between logs and requests for debugging. When a user is authenticated, `org_id` and `user_id` are also added to MDC and logged.
 
 ## Error Response Consistency
 

@@ -24,6 +24,7 @@ All API errors return a unified JSON response format to ensure consistency and f
 
 | Code               | HTTP Status | Description                                                          |
 | ------------------ | ----------- | -------------------------------------------------------------------- |
+| `UNAUTHORIZED`     | 401         | Authentication required (missing or invalid JWT)                     |
 | `VALIDATION_ERROR` | 400         | Input validation failed (invalid JSON schema, constraint violations) |
 | `BAD_REQUEST`      | 400         | Malformed request (invalid JSON, missing required fields)            |
 | `NOT_FOUND`        | 404         | Requested resource not found                                         |
@@ -43,6 +44,13 @@ All exceptions are centrally handled by `GlobalExceptionHandler` (@RestControlle
 - `IllegalArgumentException` → 400 BAD_REQUEST
 - `ApiException` → Configured status code (supports custom error codes)
 - Generic `Exception` → 500 INTERNAL_ERROR
+
+### Security Error Handling
+
+Security failures are handled by dedicated handlers to ensure the same JSON format:
+
+- AuthenticationEntryPoint → 401 UNAUTHORIZED
+- AccessDeniedHandler → 403 FORBIDDEN
 
 ### Stack Trace Suppression
 

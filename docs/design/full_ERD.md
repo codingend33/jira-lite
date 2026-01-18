@@ -4,6 +4,12 @@
 
 This document describes the core database design for Jira Lite after V1 and V2 migrations, adopting a **multi-tenant isolation** architecture. Every table ensures tenant data isolation through the `org_id` field.
 
+## Goals
+
+- Multi-tenant isolation via `org_id` on tenant-owned tables
+- Prevent cross-org references using composite FKs `(org_id, id)`
+- Minimal RBAC via `org_memberships.role`: `ADMIN`, `MEMBER`
+
 ---
 
 ## Mermaid ERD Diagram
