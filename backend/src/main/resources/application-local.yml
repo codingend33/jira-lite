@@ -18,7 +18,17 @@ spring:
     locations: classpath:db/migration # flyway locations  (db/migration is the default location)
     baseline-on-migrate: true # baseline on migrate
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt: # jwt configuration
+          issuer-uri: ${COGNITO_ISSUER_URI:https://cognito-idp.<region>.amazonaws.com/<userPoolId>}
+
 logging:
   level:
     org.flywaydb: INFO # flyway level
     org.hibernate.SQL: INFO # hibernate sql level
+
+app: # app configuration
+  security:
+    org-claim: ${ORG_CLAIM:custom:org_id} # org claim

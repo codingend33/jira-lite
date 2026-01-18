@@ -44,6 +44,7 @@ All endpoints are automatically documented in Swagger UI:
 - Echoes back the provided title with timestamp
 - Validates input (title must not be blank)
 - Returns unified error response on validation failure
+- Requires Bearer JWT (except /health and Swagger resources)
 
 ## Swagger Configuration
 
@@ -57,6 +58,11 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
+            .components(new Components()
+                .addSecuritySchemes("bearerAuth",
+                    new SecurityScheme().type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer").bearerFormat("JWT")))
+            .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
             .info(new Info()
                 .title("Jira Lite API")
                 .version("1.0.0")
@@ -86,7 +92,7 @@ public ResponseEntity<EchoResponse> echo(@Valid @RequestBody EchoRequest request
 <dependency>
     <groupId>org.springdoc</groupId>
     <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-    <version>2.6.0</version>
+    <version>2.8.9</version>
 </dependency>
 ```
 
@@ -118,6 +124,15 @@ curl -X GET http://localhost:8080/health
 # Echo endpoint
 curl -X POST http://localhost:8080/demo/echo \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <JWT>" \
   -d '{"title": "Hello API"}'
+
+## Swagger Auth Usage
+
+Click **Authorize** in Swagger UI and paste a JWT:
+
+```
+Bearer eyJraWQiOi...
+```
 ```
 

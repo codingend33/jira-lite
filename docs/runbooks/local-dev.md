@@ -1,6 +1,6 @@
 # Local Dev Runbook
 
-## Commands
+## Day 1: Local Setup
 
 ### Start DB
 
@@ -26,6 +26,9 @@ docker compose up -d
 ### Run backend with local profile
 
 ```bash
+# Optional: set Cognito issuer for Day 4 auth tests
+$env:COGNITO_ISSUER_URI="https://cognito-idp.<region>.amazonaws.com/<userPoolId>"
+
 .\mvnw.cmd --% spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
@@ -33,6 +36,54 @@ docker compose up -d
 
 ```bash
 curl.exe -i http://localhost:8080/health
+```
+
+## Day 2: Error Handling + TraceId
+
+### Verify Day 2 Error Handling + TraceId
+
+```bash
+# Validation error (400 VALIDATION_ERROR + traceId)
+curl.exe -i -X POST http://localhost:8080/demo/echo ^
+  -H "Content-Type: application/json" ^
+  -d "{\"title\": \"\"}"
+
+# Internal error (500 INTERNAL_ERROR + traceId)
+curl.exe -i -X POST http://localhost:8080/demo/echo ^
+  -H "Content-Type: application/json" ^
+  -d "{\"title\": \"panic\"}"
+```
+
+## Day 3: Flyway + Schema
+
+### Verify Day 3 Flyway Migrations
+
+```bash
+# Check Flyway history shows V1, V2, V3 applied
+docker exec -it jira-lite-postgres psql -U jira -d jira_lite -c "select version, success from flyway_schema_history order by installed_rank;"
+
+# Confirm core tables exist
+docker exec -it jira-lite-postgres psql -U jira -d jira_lite -c "\dt"
+
+# Spot-check new columns added in V2/V3
+docker exec -it jira-lite-postgres psql -U jira -d jira_lite -c "\d org_membership"
+docker exec -it jira-lite-postgres psql -U jira -d jira_lite -c "\d app_user"
+docker exec -it jira-lite-postgres psql -U jira -d jira_lite -c "\d ticket"
+```
+
+## Day 4: Cognito + RBAC + TenantContext
+
+### Verify Day 4 Auth + RBAC
+
+```bash
+# Protected endpoint (no token -> 401)
+curl.exe -i http://localhost:8080/debug/whoami
+
+# Protected endpoint (token required)
+curl.exe -i -H "Authorization: Bearer <JWT>" http://localhost:8080/debug/whoami
+
+# Admin-only (requires ADMIN role)
+curl.exe -i -H "Authorization: Bearer <JWT>" http://localhost:8080/debug/admin-only
 ```
 
 ## Troubleshooting
