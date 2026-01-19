@@ -115,7 +115,26 @@ curl.exe -i -X DELETE http://localhost:8080/org/members/<USER_UUID> ^
 
 ```bash
 cd backend
-./mvnw test -Dtest=OrgMembersTcIntegrationTest
+./mvnw test -Dtest=OrgMembersTcIntegrationTest -DrunTestcontainers=true
+```
+
+## Day 6: Projects CRUD + Archive
+
+### Verify Day 6 Projects
+
+```bash
+# List projects (ADMIN or MEMBER)
+curl.exe -i -H "Authorization: Bearer <JWT>" http://localhost:8080/projects
+
+# Create project (ADMIN only)
+curl.exe -i -X POST http://localhost:8080/projects ^
+  -H "Authorization: Bearer <JWT>" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"key\":\"APP\",\"name\":\"App Platform\",\"description\":\"Core apps\"}"
+
+# Archive project (ADMIN only)
+curl.exe -i -X POST http://localhost:8080/projects/<PROJECT_ID>/archive ^
+  -H "Authorization: Bearer <JWT>"
 ```
 
 ## Troubleshooting

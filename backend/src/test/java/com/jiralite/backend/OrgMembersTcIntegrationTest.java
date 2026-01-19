@@ -24,6 +24,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +41,7 @@ import com.jiralite.backend.security.TestJwtDecoderConfig;
 @ActiveProfiles("test")
 @Import(TestJwtDecoderConfig.class)
 @Testcontainers
+@EnabledIfSystemProperty(named = "runTestcontainers", matches = "true")
 class OrgMembersTcIntegrationTest {
 
     private static final UUID ORG_1 = UUID.fromString("11111111-1111-1111-1111-111111111111");
