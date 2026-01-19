@@ -46,6 +46,13 @@ All endpoints are automatically documented in Swagger UI:
 - Returns unified error response on validation failure
 - Requires Bearer JWT (except /health and Swagger resources)
 
+### Org Members (Admin-only)
+- **GET** `/org/members`
+- **POST** `/org/members`
+- **PATCH** `/org/members/{userId}`
+- **DELETE** `/org/members/{userId}`
+- Requires Bearer JWT with `ADMIN` role
+
 ## Swagger Configuration
 
 ### OpenApiConfig

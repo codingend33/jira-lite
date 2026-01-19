@@ -23,10 +23,13 @@ public class TestJwtDecoderConfig {
     public JwtDecoder jwtDecoder() {
         return token -> {
             if ("admin-token".equals(token)) {
-                return buildJwt(token, "user-1", "org-1", List.of("ADMIN"));
+                return buildJwt(token, "user-1", "11111111-1111-1111-1111-111111111111", List.of("ADMIN"));
             }
             if ("member-token".equals(token)) {
-                return buildJwt(token, "user-2", "org-1", List.of("MEMBER"));
+                return buildJwt(token, "user-2", "11111111-1111-1111-1111-111111111111", List.of("MEMBER"));
+            }
+            if ("admin-org2-token".equals(token)) {
+                return buildJwt(token, "user-3", "22222222-2222-2222-2222-222222222222", List.of("ADMIN"));
             }
             throw new JwtException("Invalid token");
         };

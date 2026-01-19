@@ -68,7 +68,7 @@ class SecurityIntegrationTest {
         mockMvc.perform(get("/debug/whoami")
                 .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.orgId").value("org-1"))
+                .andExpect(jsonPath("$.orgId").value("11111111-1111-1111-1111-111111111111"))
                 .andExpect(jsonPath("$.userId").value("user-1"))
                 .andExpect(jsonPath("$.roles", hasItem("ADMIN")))
                 .andExpect(jsonPath("$.traceId", notNullValue()));

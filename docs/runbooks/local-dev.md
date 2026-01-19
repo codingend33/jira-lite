@@ -86,6 +86,38 @@ curl.exe -i -H "Authorization: Bearer <JWT>" http://localhost:8080/debug/whoami
 curl.exe -i -H "Authorization: Bearer <JWT>" http://localhost:8080/debug/admin-only
 ```
 
+## Day 5: Org Members Admin + Tenant Isolation
+
+### Verify Day 5 Org Member Management
+
+```bash
+# List members (ADMIN only)
+curl.exe -i -H "Authorization: Bearer <JWT>" http://localhost:8080/org/members
+
+# Add member (ADMIN only)
+curl.exe -i -X POST http://localhost:8080/org/members ^
+  -H "Authorization: Bearer <JWT>" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"userId\":\"<USER_UUID>\"}"
+
+# Update member (ADMIN only)
+curl.exe -i -X PATCH http://localhost:8080/org/members/<USER_UUID> ^
+  -H "Authorization: Bearer <JWT>" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"role\":\"MEMBER\",\"status\":\"ACTIVE\"}"
+
+# Delete member (ADMIN only)
+curl.exe -i -X DELETE http://localhost:8080/org/members/<USER_UUID> ^
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Verify Day 5 Testcontainers (optional)
+
+```bash
+cd backend
+./mvnw test -Dtest=OrgMembersTcIntegrationTest
+```
+
 ## Troubleshooting
 
 ### Port 5432 is already in use
