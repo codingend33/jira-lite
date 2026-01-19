@@ -18,6 +18,47 @@ The context is stored in a ThreadLocal and cleared after the request finishes.
 - Services should use `TenantContextHolder.getRequired()` to fetch orgId/userId.
 - Repository methods should scope queries by orgId.
 
+## Org Member Management
+
+Admin member management endpoints are scoped to the current org derived from JWT claims.
+All membership reads and writes must include `orgId` from `TenantContextHolder`.
+
+### C4 Context
+
+```mermaid
+C4Context
+title org-members-admin
+Person(admin, "Admin User")
+System(be, "Backend")
+System_Ext(cognito, "AWS Cognito")
+Rel(admin, cognito, "Login")
+Rel(admin, be, "Manage org members")
+Rel(be, cognito, "Validate JWT + org_id")
+```
+
+### Sequence
+
+```mermaid
+sequenceDiagram
+title admin-member-update
+participant A as Admin
+participant BE as Backend
+participant SS as Spring Security
+participant TC as TenantContext
+participant SVC as OrgMemberService
+participant DB as Postgres
+
+A->>BE: PATCH /org/members/{userId} + JWT
+BE->>SS: Validate JWT
+SS-->>TC: Authenticated
+TC->>SVC: orgId from TenantContext
+SVC->>DB: Find membership by orgId + userId
+DB-->>SVC: Membership
+SVC->>DB: Update role/status
+DB-->>SVC: OK
+SVC-->>BE: Response
+```
+
 ## Mermaid
 
 ### C4 Context
