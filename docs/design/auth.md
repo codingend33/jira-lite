@@ -33,14 +33,6 @@ app:
     org-claim: ${ORG_CLAIM:custom:org_id}
 ```
 
-## Swagger Usage
-
-Swagger UI supports BearerAuth. Click **Authorize** and paste a JWT:
-
-```
-Bearer eyJraWQiOi...(this is just an example, not a valid token)
-```
-
 ## Mermaid
 
 ### C4 Context

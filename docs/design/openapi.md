@@ -53,6 +53,15 @@ All endpoints are automatically documented in Swagger UI:
 - **DELETE** `/org/members/{userId}`
 - Requires Bearer JWT with `ADMIN` role
 
+### Projects
+- **GET** `/projects`
+- **GET** `/projects/{projectId}`
+- **POST** `/projects` (ADMIN only)
+- **PATCH** `/projects/{projectId}` (ADMIN only)
+- **DELETE** `/projects/{projectId}` (ADMIN only)
+- **POST** `/projects/{projectId}/archive` (ADMIN only)
+- **POST** `/projects/{projectId}/unarchive` (ADMIN only)
+
 ## Swagger Configuration
 
 ### OpenApiConfig

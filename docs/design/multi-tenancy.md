@@ -23,6 +23,11 @@ The context is stored in a ThreadLocal and cleared after the request finishes.
 Admin member management endpoints are scoped to the current org derived from JWT claims.
 All membership reads and writes must include `orgId` from `TenantContextHolder`.
 
+## Projects
+
+Project CRUD is tenant-scoped by orgId from the JWT claim. Services must query
+projects using `orgId` from `TenantContextHolder` and never accept orgId from clients.
+
 ### C4 Context
 
 ```mermaid

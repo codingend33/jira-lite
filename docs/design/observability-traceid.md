@@ -53,31 +53,6 @@ The `logback-spring.xml` configuration includes `traceId` in all log outputs:
 
 This enables correlation between logs and requests for debugging. When a user is authenticated, `org_id` and `user_id` are also added to MDC and logged.
 
-## Error Response Consistency
-
-In case of errors, the traceId in the response body **always matches** the `X-Trace-Id` response header:
-
-```bash
-curl -X POST http://localhost:8080/demo/echo \
-  -H "Content-Type: application/json" \
-  -H "X-Trace-Id: custom-trace-123" \
-  -d '{"title": ""}'
-```
-
-Response:
-```json
-{
-  "code": "VALIDATION_ERROR",
-  "message": "Validation failed: ...",
-  "traceId": "custom-trace-123"
-}
-```
-
-Response headers:
-```
-X-Trace-Id: custom-trace-123
-```
-
 ## Implementation Details
 
 ### TraceIdFilter
