@@ -137,6 +137,35 @@ curl.exe -i -X POST http://localhost:8080/projects/<PROJECT_ID>/archive ^
   -H "Authorization: Bearer <JWT>"
 ```
 
+## Day 7: Tickets CRUD + Status Flow
+
+### Verify Day 7 Tickets
+
+```bash
+# List tickets (paged)
+curl.exe -i -H "Authorization: Bearer <JWT>" ^
+  "http://localhost:8080/tickets?page=0&size=10&sort=createdAt,desc"
+
+# Create ticket
+curl.exe -i -X POST http://localhost:8080/tickets ^
+  -H "Authorization: Bearer <JWT>" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"projectId\":\"<PROJECT_ID>\",\"title\":\"Bug\",\"priority\":\"HIGH\"}"
+
+# Transition ticket status
+curl.exe -i -X POST http://localhost:8080/tickets/<TICKET_ID>/transition ^
+  -H "Authorization: Bearer <JWT>" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"status\":\"IN_PROGRESS\"}"
+```
+
+### Verify Day 7 Testcontainers (optional)
+
+```bash
+cd backend
+./mvnw test -Dtest=TicketsTcIntegrationTest -DrunTestcontainers=true
+```
+
 ## Troubleshooting
 
 ### Port 5432 is already in use

@@ -62,6 +62,13 @@ All endpoints are automatically documented in Swagger UI:
 - **POST** `/projects/{projectId}/archive` (ADMIN only)
 - **POST** `/projects/{projectId}/unarchive` (ADMIN only)
 
+### Tickets
+- **GET** `/tickets` (paged)
+- **GET** `/tickets/{ticketId}`
+- **POST** `/tickets`
+- **PATCH** `/tickets/{ticketId}`
+- **POST** `/tickets/{ticketId}/transition`
+
 ## Swagger Configuration
 
 ### OpenApiConfig
