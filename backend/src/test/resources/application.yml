@@ -4,3 +4,10 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+
+app:
+  s3:
+    bucket: test-bucket
+    region: ap-southeast-2
+    upload-expiry-seconds: 300
+    download-expiry-seconds: 300

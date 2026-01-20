@@ -69,6 +69,16 @@ All endpoints are automatically documented in Swagger UI:
 - **PATCH** `/tickets/{ticketId}`
 - **POST** `/tickets/{ticketId}/transition`
 
+### Ticket Comments
+- **GET** `/tickets/{ticketId}/comments`
+- **POST** `/tickets/{ticketId}/comments`
+
+### Ticket Attachments
+- **POST** `/tickets/{ticketId}/attachments/presign-upload`
+- **GET** `/tickets/{ticketId}/attachments`
+- **POST** `/tickets/{ticketId}/attachments/{attachmentId}/confirm`
+- **GET** `/tickets/{ticketId}/attachments/{attachmentId}/presign-download`
+
 ## Swagger Configuration
 
 ### OpenApiConfig

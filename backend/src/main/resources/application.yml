@@ -8,6 +8,12 @@ spring:
 server:
   port: ${SERVER_PORT:8080} # server port
 
+app:
+  s3:
+    bucket: ${S3_BUCKET:jira-lite-attachments}
+    region: ${AWS_REGION:ap-southeast-2}
+    upload-expiry-seconds: ${S3_UPLOAD_EXPIRY_SECONDS:300}
+    download-expiry-seconds: ${S3_DOWNLOAD_EXPIRY_SECONDS:300}
 
 # Note:
 # - Do not hardcode local DB settings here.

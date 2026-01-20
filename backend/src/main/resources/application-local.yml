@@ -32,3 +32,8 @@ logging:
 app: # app configuration
   security:
     org-claim: ${ORG_CLAIM:custom:org_id} # org claim
+  s3:
+    bucket: ${S3_BUCKET:jira-lite-attachments}
+    region: ${AWS_REGION:ap-southeast-2}
+    upload-expiry-seconds: ${S3_UPLOAD_EXPIRY_SECONDS:300}
+    download-expiry-seconds: ${S3_DOWNLOAD_EXPIRY_SECONDS:300}

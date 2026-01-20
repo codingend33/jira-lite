@@ -166,6 +166,48 @@ cd backend
 ./mvnw test -Dtest=TicketsTcIntegrationTest -DrunTestcontainers=true
 ```
 
+## Day 8: Comments + Attachments (S3 Presigned)
+
+### Verify Day 8 Comments
+
+```bash
+# List comments
+curl.exe -i -H "Authorization: Bearer <JWT>" ^
+  http://localhost:8080/tickets/<TICKET_ID>/comments
+
+# Create comment
+curl.exe -i -X POST http://localhost:8080/tickets/<TICKET_ID>/comments ^
+  -H "Authorization: Bearer <JWT>" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"body\":\"Looks good\"}"
+```
+
+### Verify Day 8 Attachments
+
+```bash
+# Presign upload
+curl.exe -i -X POST http://localhost:8080/tickets/<TICKET_ID>/attachments/presign-upload ^
+  -H "Authorization: Bearer <JWT>" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"fileName\":\"log.txt\",\"contentType\":\"text/plain\",\"fileSize\":12}"
+
+# Confirm upload
+curl.exe -i -X POST http://localhost:8080/tickets/<TICKET_ID>/attachments/<ATTACHMENT_ID>/confirm ^
+  -H "Authorization: Bearer <JWT>"
+
+# Presign download
+curl.exe -i -X GET http://localhost:8080/tickets/<TICKET_ID>/attachments/<ATTACHMENT_ID>/presign-download ^
+  -H "Authorization: Bearer <JWT>"
+```
+
+### Verify Day 8 Testcontainers (optional)
+
+```bash
+cd backend
+./mvnw test -Dtest=TicketCommentsTcIntegrationTest -DrunTestcontainers=true
+./mvnw test -Dtest=TicketAttachmentsTcIntegrationTest -DrunTestcontainers=true
+```
+
 ## Troubleshooting
 
 ### Port 5432 is already in use
