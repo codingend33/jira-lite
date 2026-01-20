@@ -28,6 +28,11 @@ All membership reads and writes must include `orgId` from `TenantContextHolder`.
 Project CRUD is tenant-scoped by orgId from the JWT claim. Services must query
 projects using `orgId` from `TenantContextHolder` and never accept orgId from clients.
 
+## Tickets
+
+Ticket list/detail/create/update/transition must always scope by `orgId` from
+`TenantContextHolder`. Any cross-org access should return 404 to avoid leakage.
+
 ### C4 Context
 
 ```mermaid
