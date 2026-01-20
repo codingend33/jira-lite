@@ -53,9 +53,23 @@ Full local runbook: `docs/runbooks/local-dev.md`
 - Day 2: Error format + traceId + OpenAPI + layering tests
 - Day 3: ERD + Flyway core schema enhancements
 - Day 4: Cognito JWT auth + RBAC + TenantContext
+- Day 5: Org members admin + tenant isolation tests
+- Day 6: Projects CRUD + archive + OpenAPI updates
+- Day 7: Tickets CRUD + pagination/filter/sort + status flow
+- Day 8: Comments + attachments (S3 presigned) + tests/docs
 
 ## Tests
 
 ```bash
-./mvnw test
+# Windows
+.\mvnw.cmd test
+```
+
+Optional Testcontainers (Docker required):
+
+```bash
+.\mvnw.cmd test -Dtest=OrgMembersTcIntegrationTest -DrunTestcontainers=true
+.\mvnw.cmd test -Dtest=TicketsTcIntegrationTest -DrunTestcontainers=true
+.\mvnw.cmd test -Dtest=TicketCommentsTcIntegrationTest -DrunTestcontainers=true
+.\mvnw.cmd test -Dtest=TicketAttachmentsTcIntegrationTest -DrunTestcontainers=true
 ```

@@ -33,6 +33,11 @@ projects using `orgId` from `TenantContextHolder` and never accept orgId from cl
 Ticket list/detail/create/update/transition must always scope by `orgId` from
 `TenantContextHolder`. Any cross-org access should return 404 to avoid leakage.
 
+## Comments & Attachments
+
+Ticket comments and attachments must verify the ticket belongs to the current org.
+All reads/writes must include `orgId` from `TenantContextHolder`.
+
 ### C4 Context
 
 ```mermaid
