@@ -1,5 +1,7 @@
 # Local env files
 .env
+frontend/.env*
+!frontend/.env.example
 
 # Build outputs
 target/
@@ -9,3 +11,15 @@ AI_Instruction.md
 
 # AI prompt logs (do not commit)
 docs/ai/prompt-log.md
+# local-only config
+backend/src/main/resources/application-local.yml
+
+# IDE
+.idea/
+
+# frontend deps
+frontend/node_modules/
+
+# env files
+.env
+.env.local

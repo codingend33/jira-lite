@@ -1,8 +1,11 @@
 package com.jiralite.backend;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -114,6 +117,47 @@ class ProjectsIntegrationTest {
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ARCHIVED"));
+    }
+
+    @Test
+    void admin_can_update_project_description() throws Exception {
+        String payload = "{\"description\":\"Updated description\"}";
+        mockMvc.perform(patch("/projects/{projectId}", PROJECT_1)
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.description").value("Updated description"));
+    }
+
+    @Test
+    void admin_update_requires_fields() throws Exception {
+        String payload = "{}";
+        mockMvc.perform(patch("/projects/{projectId}", PROJECT_1)
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.traceId", notNullValue()));
+    }
+
+    @Test
+    void admin_can_delete_project() throws Exception {
+        mockMvc.perform(delete("/projects/{projectId}", PROJECT_1)
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isNoContent());
+
+        assertThat(projectRepository.findById(PROJECT_1)).isEmpty();
+    }
+
+    @Test
+    void member_cannot_delete_project() throws Exception {
+        mockMvc.perform(delete("/projects/{projectId}", PROJECT_1)
+                        .header("Authorization", "Bearer member-token"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.traceId", notNullValue()));
     }
 
     private OrgEntity org(String name, UUID id) {

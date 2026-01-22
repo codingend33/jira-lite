@@ -49,6 +49,7 @@ class TicketAttachmentsIntegrationTest {
     private static final UUID TICKET_1 = UUID.fromString("cccccccc-3333-3333-3333-333333333333");
     private static final UUID TICKET_2 = UUID.fromString("dddddddd-4444-4444-4444-444444444444");
     private static final UUID ATTACHMENT_1 = UUID.fromString("eeeeeeee-5555-5555-5555-555555555555");
+    private static final UUID ATTACHMENT_2 = UUID.fromString("ffffffff-6666-6666-6666-666666666666");
 
     @Autowired
     private MockMvc mockMvc;
@@ -85,6 +86,9 @@ class TicketAttachmentsIntegrationTest {
         ticketRepository.save(ticket(TICKET_2, ORG_2, PROJECT_2, "OPS-1", "Other org"));
 
         attachmentRepository.save(attachment(ATTACHMENT_1, ORG_1, TICKET_1, "log.txt", "text/plain", 12L, "UPLOADED"));
+        TicketAttachmentEntity missingKey = attachment(ATTACHMENT_2, ORG_1, TICKET_1, "empty.txt", "text/plain", 3L, "PENDING");
+        missingKey.setS3Key("");
+        attachmentRepository.save(missingKey);
 
         when(s3PresignService.presignUpload(any(), any()))
                 .thenReturn(new S3PresignService.PresignResult(
@@ -92,7 +96,7 @@ class TicketAttachmentsIntegrationTest {
                         Map.of("Content-Type", "text/plain"),
                         OffsetDateTime.now().plusMinutes(5)));
 
-        when(s3PresignService.presignDownload(any()))
+        when(s3PresignService.presignDownload(any(), any(), any()))
                 .thenReturn(new S3PresignService.PresignResult(
                         new URL("https://example.com/download"),
                         Map.of(),
@@ -112,7 +116,7 @@ class TicketAttachmentsIntegrationTest {
         mockMvc.perform(get("/tickets/{ticketId}/attachments", TICKET_1)
                         .header("Authorization", "Bearer member-token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$", hasSize(2)))
                 .andExpect(jsonPath("$[0].fileName").value("log.txt"));
     }
 
@@ -150,6 +154,24 @@ class TicketAttachmentsIntegrationTest {
                         .header("Authorization", "Bearer member-token"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UPLOADED"));
+    }
+
+    @Test
+    void confirm_upload_rejects_wrong_ticket() throws Exception {
+        mockMvc.perform(post("/tickets/{ticketId}/attachments/{attachmentId}/confirm", TICKET_2, ATTACHMENT_1)
+                        .header("Authorization", "Bearer member-token"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("NOT_FOUND"))
+                .andExpect(jsonPath("$.traceId", notNullValue()));
+    }
+
+    @Test
+    void presign_download_requires_s3_key() throws Exception {
+        mockMvc.perform(get("/tickets/{ticketId}/attachments/{attachmentId}/presign-download", TICKET_1, ATTACHMENT_2)
+                        .header("Authorization", "Bearer member-token"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.traceId", notNullValue()));
     }
 
     private OrgEntity org(String name, UUID id) {

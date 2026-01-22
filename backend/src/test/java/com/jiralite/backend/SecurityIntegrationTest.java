@@ -73,4 +73,13 @@ class SecurityIntegrationTest {
                 .andExpect(jsonPath("$.roles", hasItem("ADMIN")))
                 .andExpect(jsonPath("$.traceId", notNullValue()));
     }
+
+    @Test
+    void missing_org_claim_returns_unauthorized() throws Exception {
+        mockMvc.perform(get("/projects")
+                .header("Authorization", "Bearer no-org-token"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("UNAUTHORIZED"))
+                .andExpect(jsonPath("$.traceId", notNullValue()));
+    }
 }

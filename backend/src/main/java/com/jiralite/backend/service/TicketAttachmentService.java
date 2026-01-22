@@ -102,11 +102,25 @@ public class TicketAttachmentService {
         if (attachment.getS3Key() == null || attachment.getS3Key().isBlank()) {
             throw new ApiException(ErrorCode.BAD_REQUEST, "Attachment not ready", HttpStatus.BAD_REQUEST.value());
         }
-        S3PresignService.PresignResult presign = s3PresignService.presignDownload(attachment.getS3Key());
+        S3PresignService.PresignResult presign = s3PresignService.presignDownload(
+                attachment.getS3Key(),
+                attachment.getFileName(),
+                attachment.getContentType());
         return new PresignDownloadResponse(
                 attachment.getId(),
                 presign.url().toString(),
                 presign.expiresAt());
+    }
+
+    @Transactional
+    public void deleteAttachment(UUID ticketId, UUID attachmentId) {
+        TicketAttachmentEntity attachment = getAttachment(attachmentId);
+        if (!attachment.getTicketId().equals(ticketId)) {
+            throw new ApiException(ErrorCode.NOT_FOUND, "Attachment not found", HttpStatus.NOT_FOUND.value());
+        }
+        attachmentRepository.delete(attachment);
+        // S3 object cleanup is not performed here to avoid unintended deletions. Add explicit S3
+        // deletion if your retention policy requires it.
     }
 
     private TicketEntity getTicket(UUID ticketId) {

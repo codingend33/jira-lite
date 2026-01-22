@@ -141,6 +141,43 @@ class OrgMembersIntegrationTest {
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
     }
 
+    @Test
+    void admin_can_update_member_role_and_status() throws Exception {
+        String payload = "{\"role\":\"MEMBER\",\"status\":\"DISABLED\"}";
+        mockMvc.perform(patch("/org/members/{userId}", USER_A)
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(USER_A.toString()))
+                .andExpect(jsonPath("$.role").value("MEMBER"))
+                .andExpect(jsonPath("$.status").value("DISABLED"));
+    }
+
+    @Test
+    void update_requires_role_or_status() throws Exception {
+        String payload = "{}";
+        mockMvc.perform(patch("/org/members/{userId}", USER_A)
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.traceId", notNullValue()));
+    }
+
+    @Test
+    void update_rejects_invalid_role() throws Exception {
+        String payload = "{\"role\":\"OWNER\"}";
+        mockMvc.perform(patch("/org/members/{userId}", USER_A)
+                        .header("Authorization", "Bearer admin-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.traceId", notNullValue()));
+    }
+
     private OrgEntity org(String name, UUID id) {
         OrgEntity org = new OrgEntity();
         org.setId(id);

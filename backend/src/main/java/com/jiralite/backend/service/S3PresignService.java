@@ -57,20 +57,30 @@ public class S3PresignService {
         return new PresignResult(presigned.url(), headers, OffsetDateTime.now().plusSeconds(uploadExpiry.getSeconds()));
     }
 
-    public PresignResult presignDownload(String key) {
-        GetObjectRequest getRequest = GetObjectRequest.builder()
+    public PresignResult presignDownload(String key, String fileName, String contentType) {
+        GetObjectRequest.Builder getRequest = GetObjectRequest.builder()
                 .bucket(bucket)
-                .key(key)
-                .build();
+                .key(key);
+        if (fileName != null && !fileName.isBlank()) {
+            getRequest.responseContentDisposition(buildContentDisposition(fileName));
+        }
+        if (contentType != null && !contentType.isBlank()) {
+            getRequest.responseContentType(contentType);
+        }
 
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
-                .getObjectRequest(getRequest)
+                .getObjectRequest(getRequest.build())
                 .signatureDuration(downloadExpiry)
                 .build();
 
         PresignedGetObjectRequest presigned = presigner.presignGetObject(presignRequest);
         return new PresignResult(presigned.url(), Map.of(),
                 OffsetDateTime.now().plusSeconds(downloadExpiry.getSeconds()));
+    }
+
+    private String buildContentDisposition(String fileName) {
+        String safe = fileName.replaceAll("[\\r\\n\"]", "_");
+        return "attachment; filename=\"" + safe + "\"";
     }
 
     public record PresignResult(URL url, Map<String, String> headers, OffsetDateTime expiresAt) {
