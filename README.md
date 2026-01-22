@@ -32,6 +32,15 @@ Verify:
 curl.exe -i http://localhost:8080/health
 ```
 
+Frontend (Vite):
+
+```bash
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
 Full local runbook: `docs/runbooks/local-dev.md`
 
 ## Documentation
@@ -41,6 +50,9 @@ Full local runbook: `docs/runbooks/local-dev.md`
 - Error handling: `docs/design/error-handling.md`
 - TraceId: `docs/design/observability-traceid.md`
 - Auth/RBAC: `docs/design/auth.md`
+- Frontend auth: `docs/design/frontend-auth.md`
+- Frontend data: `docs/design/frontend-data.md`
+- UI pages: `docs/design/ui-pages.md`
 - Multi-tenancy: `docs/design/multi-tenancy.md`
 - Architecture: `docs/design/architecture.md`
 - ERD: `docs/design/full_ERD.md`
@@ -57,6 +69,7 @@ Full local runbook: `docs/runbooks/local-dev.md`
 - Day 6: Projects CRUD + archive + OpenAPI updates
 - Day 7: Tickets CRUD + pagination/filter/sort + status flow
 - Day 8: Comments + attachments (S3 presigned) + tests/docs
+- Day 9: Frontend pages + Cognito login + React Query data layer
 
 ## Tests
 

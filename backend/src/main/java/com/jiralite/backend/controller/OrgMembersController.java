@@ -55,6 +55,13 @@ public class OrgMembersController {
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
+    @GetMapping("/lookup")
+    @PreAuthorize("hasAnyRole('ADMIN','MEMBER')")
+    @Operation(summary = "List members in current org (basic info)")
+    public ResponseEntity<List<MemberResponse>> lookupMembers() {
+        return ResponseEntity.ok(orgMemberService.listMembers());
+    }
+
     @PatchMapping("/{userId}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update member role/status in current org (ADMIN only)")

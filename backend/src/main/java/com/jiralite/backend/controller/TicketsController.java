@@ -26,6 +26,7 @@ import com.jiralite.backend.service.TicketService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 
 /**
  * Ticket endpoints scoped to the current org.
@@ -49,7 +50,7 @@ public class TicketsController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) UUID projectId,
-            Pageable pageable) {
+            @ParameterObject Pageable pageable) {
         return ResponseEntity.ok(ticketService.listTickets(status, priority, projectId, pageable));
     }
 

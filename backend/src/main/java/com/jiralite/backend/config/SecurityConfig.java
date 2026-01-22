@@ -1,5 +1,6 @@
 package com.jiralite.backend.config;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -18,10 +19,15 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.jiralite.backend.security.RestAccessDeniedHandler;
 import com.jiralite.backend.security.RestAuthenticationEntryPoint;
 import com.jiralite.backend.security.tenant.TenantContextFilter;
+
+import static org.springframework.security.config.Customizer.withDefaults;
 
 /**
  * Security configuration for JWT resource server and RBAC.
@@ -37,6 +43,7 @@ public class SecurityConfig {
             RestAuthenticationEntryPoint authenticationEntryPoint,
             RestAccessDeniedHandler accessDeniedHandler) throws Exception {
         http.csrf(csrf -> csrf.disable());
+        http.cors(withDefaults());
 
         http.authorizeHttpRequests(auth -> auth
                 .requestMatchers(
@@ -60,8 +67,25 @@ public class SecurityConfig {
 
     @Bean
     public TenantContextFilter tenantContextFilter(
-            @Value("${app.security.org-claim:custom:org_id}") String orgClaim) {
+            @Value("${app.security.org-claim:org_id}") String orgClaim) {
         return new TenantContextFilter(orgClaim, "traceId");
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource(
+            @Value("${app.cors.allowed-origins:http://localhost:5173}") String allowedOrigins) {
+        CorsConfiguration config = new CorsConfiguration();
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(value -> !value.isBlank())
+                .toList();
+        config.setAllowedOrigins(origins);
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
+        config.setAllowCredentials(true);
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 
     @Bean

@@ -58,6 +58,7 @@ class TicketAttachmentsTcIntegrationTest {
     private static final UUID TICKET_1 = UUID.fromString("cccccccc-3333-3333-3333-333333333333");
     private static final UUID TICKET_2 = UUID.fromString("dddddddd-4444-4444-4444-444444444444");
     private static final UUID ATTACHMENT_1 = UUID.fromString("eeeeeeee-5555-5555-5555-555555555555");
+    private static final UUID ATTACHMENT_2 = UUID.fromString("ffffffff-6666-6666-6666-666666666666");
 
     @Container
     private static final PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16")
@@ -117,6 +118,9 @@ class TicketAttachmentsTcIntegrationTest {
         ticketRepository.save(ticket(TICKET_2, ORG_2, PROJECT_2, "OPS-1", "Other org"));
 
         attachmentRepository.save(attachment(ATTACHMENT_1, ORG_1, TICKET_1, "log.txt", "text/plain", 12L, "UPLOADED"));
+        TicketAttachmentEntity missingKey = attachment(ATTACHMENT_2, ORG_1, TICKET_1, "empty.txt", "text/plain", 3L, "PENDING");
+        missingKey.setS3Key("");
+        attachmentRepository.save(missingKey);
 
         when(s3PresignService.presignUpload(any(), any()))
                 .thenReturn(new S3PresignService.PresignResult(
@@ -124,7 +128,7 @@ class TicketAttachmentsTcIntegrationTest {
                         Map.of("Content-Type", "text/plain"),
                         OffsetDateTime.now().plusMinutes(5)));
 
-        when(s3PresignService.presignDownload(any()))
+        when(s3PresignService.presignDownload(any(), any(), any()))
                 .thenReturn(new S3PresignService.PresignResult(
                         new URL("https://example.com/download"),
                         Map.of(),
@@ -141,7 +145,7 @@ class TicketAttachmentsTcIntegrationTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         JsonNode body = objectMapper.readTree(response.getBody());
-        assertThat(body.size()).isEqualTo(1);
+        assertThat(body.size()).isEqualTo(2);
         assertThat(body.get(0).get("fileName").asText()).isEqualTo("log.txt");
     }
 
@@ -183,6 +187,32 @@ class TicketAttachmentsTcIntegrationTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         JsonNode body = objectMapper.readTree(response.getBody());
         assertThat(body.get("code").asText()).isEqualTo("NOT_FOUND");
+    }
+
+    @Test
+    void confirm_upload_rejects_wrong_ticket() throws Exception {
+        ResponseEntity<String> response = restTemplate.exchange(
+                url("/tickets/" + TICKET_2 + "/attachments/" + ATTACHMENT_1 + "/confirm"),
+                HttpMethod.POST,
+                authEntity("member-token", null),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("code").asText()).isEqualTo("NOT_FOUND");
+    }
+
+    @Test
+    void presign_download_requires_s3_key() throws Exception {
+        ResponseEntity<String> response = restTemplate.exchange(
+                url("/tickets/" + TICKET_1 + "/attachments/" + ATTACHMENT_2 + "/presign-download"),
+                HttpMethod.GET,
+                authEntity("member-token", null),
+                String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        JsonNode body = objectMapper.readTree(response.getBody());
+        assertThat(body.get("code").asText()).isEqualTo("BAD_REQUEST");
     }
 
     private String url(String path) {

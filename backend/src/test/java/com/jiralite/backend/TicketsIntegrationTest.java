@@ -3,6 +3,7 @@ package com.jiralite.backend;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -45,6 +46,7 @@ class TicketsIntegrationTest {
     private static final UUID PROJECT_2 = UUID.fromString("bbbbbbbb-2222-2222-2222-222222222222");
     private static final UUID TICKET_1 = UUID.fromString("cccccccc-3333-3333-3333-333333333333");
     private static final UUID TICKET_2 = UUID.fromString("dddddddd-4444-4444-4444-444444444444");
+    private static final UUID TICKET_3 = UUID.fromString("eeeeeeee-5555-5555-5555-555555555555");
     private static final UUID USER_A = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     @Autowired
@@ -84,6 +86,9 @@ class TicketsIntegrationTest {
 
         ticketRepository.save(ticket(TICKET_1, ORG_1, PROJECT_1, "JIRA-1", "First ticket", "OPEN"));
         ticketRepository.save(ticket(TICKET_2, ORG_2, PROJECT_2, "OPS-1", "Other org", "OPEN"));
+        TicketEntity doneTicket = ticket(TICKET_3, ORG_1, PROJECT_1, "JIRA-2", "Done ticket", "DONE");
+        doneTicket.setPriority("HIGH");
+        ticketRepository.save(doneTicket);
     }
 
     @Test
@@ -99,9 +104,8 @@ class TicketsIntegrationTest {
         mockMvc.perform(get("/tickets")
                         .header("Authorization", "Bearer member-token"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content", hasSize(1)))
-                .andExpect(jsonPath("$.content[0].id").value(TICKET_1.toString()))
-                .andExpect(jsonPath("$.page.totalElements").value(1));
+                .andExpect(jsonPath("$.content", hasSize(2)))
+                .andExpect(jsonPath("$.page.totalElements").value(2));
     }
 
     @Test
@@ -121,7 +125,7 @@ class TicketsIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.key").value("JIRA-2"))
+                .andExpect(jsonPath("$.key").value("JIRA-3"))
                 .andExpect(jsonPath("$.status").value("OPEN"));
     }
 
@@ -146,6 +150,54 @@ class TicketsIntegrationTest {
                         .content(payload))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("IN_PROGRESS"));
+    }
+
+    @Test
+    void member_can_update_ticket() throws Exception {
+        String payload = "{\"title\":\"Updated\",\"priority\":\"high\"}";
+        mockMvc.perform(patch("/tickets/{ticketId}", TICKET_1)
+                        .header("Authorization", "Bearer member-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Updated"))
+                .andExpect(jsonPath("$.priority").value("HIGH"));
+    }
+
+    @Test
+    void update_requires_fields() throws Exception {
+        String payload = "{}";
+        mockMvc.perform(patch("/tickets/{ticketId}", TICKET_1)
+                        .header("Authorization", "Bearer member-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.traceId", notNullValue()));
+    }
+
+    @Test
+    void update_rejects_invalid_priority() throws Exception {
+        String payload = "{\"priority\":\"INVALID\"}";
+        mockMvc.perform(patch("/tickets/{ticketId}", TICKET_1)
+                        .header("Authorization", "Bearer member-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("BAD_REQUEST"))
+                .andExpect(jsonPath("$.traceId", notNullValue()));
+    }
+
+    @Test
+    void list_filters_by_status_priority_project() throws Exception {
+        mockMvc.perform(get("/tickets")
+                        .queryParam("status", "DONE")
+                        .queryParam("priority", "HIGH")
+                        .queryParam("projectId", PROJECT_1.toString())
+                        .header("Authorization", "Bearer member-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id").value(TICKET_3.toString()));
     }
 
     private OrgEntity org(String name, UUID id) {

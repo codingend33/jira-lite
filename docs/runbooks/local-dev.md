@@ -208,6 +208,36 @@ cd backend
 ./mvnw test -Dtest=TicketAttachmentsTcIntegrationTest -DrunTestcontainers=true
 ```
 
+## Day 9: Frontend + Cognito Login
+
+### Frontend env setup
+
+```bash
+cd frontend
+cp .env.example .env.local
+```
+
+Update `.env.local`:
+
+- `VITE_API_BASE_URL=http://localhost:8080`
+- `VITE_COGNITO_DOMAIN=your-domain.auth.ap-southeast-2.amazoncognito.com`
+- `VITE_COGNITO_CLIENT_ID=your-client-id`
+- `VITE_COGNITO_REDIRECT_URI=http://localhost:5173/login`
+- `VITE_COGNITO_LOGOUT_URI=http://localhost:5173/login`
+
+### Run frontend
+
+```bash
+npm install
+npm run dev
+```
+
+### Validate login flow
+
+- Open `http://localhost:5173/login`
+- Click Login with Cognito
+- After redirect, ensure Projects list loads
+
 ## Troubleshooting
 
 ### Port 5432 is already in use

@@ -115,6 +115,18 @@ class TicketCommentsIntegrationTest {
                 .andExpect(jsonPath("$.authorId").value(org.hamcrest.Matchers.nullValue()));
     }
 
+    @Test
+    void create_comment_requires_body() throws Exception {
+        String payload = "{\"body\":\"\"}";
+        mockMvc.perform(post("/tickets/{ticketId}/comments", TICKET_1)
+                        .header("Authorization", "Bearer member-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.traceId", notNullValue()));
+    }
+
     private OrgEntity org(String name, UUID id) {
         OrgEntity org = new OrgEntity();
         org.setId(id);

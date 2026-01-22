@@ -31,6 +31,9 @@ public class TestJwtDecoderConfig {
             if ("admin-org2-token".equals(token)) {
                 return buildJwt(token, "user-3", "22222222-2222-2222-2222-222222222222", List.of("ADMIN"));
             }
+            if ("no-org-token".equals(token)) {
+                return buildJwtWithoutOrg(token, "user-4", List.of("ADMIN"));
+            }
             throw new JwtException("Invalid token");
         };
     }
@@ -41,6 +44,16 @@ public class TestJwtDecoderConfig {
         Map<String, Object> claims = new HashMap<>();
         claims.put("sub", subject);
         claims.put("custom:org_id", orgId);
+        claims.put("org_id", orgId);
+        claims.put("cognito:groups", groups);
+        return new Jwt(token, now, now.plusSeconds(3600), headers, claims);
+    }
+
+    private Jwt buildJwtWithoutOrg(String token, String subject, List<String> groups) {
+        Instant now = Instant.now();
+        Map<String, Object> headers = Map.of("alg", "none");
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("sub", subject);
         claims.put("cognito:groups", groups);
         return new Jwt(token, now, now.plusSeconds(3600), headers, claims);
     }
