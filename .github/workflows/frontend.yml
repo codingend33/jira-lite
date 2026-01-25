@@ -1,0 +1,89 @@
+name: Frontend CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-southeast-2' }}
+  FRONTEND_BUCKET: ${{ vars.FRONTEND_BUCKET }}
+  CF_DIST_ID: ${{ vars.CF_DIST_ID }}
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm ci
+      
+      - name: Build frontend
+        working-directory: ./frontend
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_COGNITO_DOMAIN: ${{ vars.VITE_COGNITO_DOMAIN }}
+          VITE_COGNITO_CLIENT_ID: ${{ vars.VITE_COGNITO_CLIENT_ID }}
+          VITE_COGNITO_REDIRECT_URI: ${{ vars.VITE_COGNITO_REDIRECT_URI }}
+          VITE_COGNITO_LOGOUT_URI: ${{ vars.VITE_COGNITO_LOGOUT_URI }}
+          VITE_COGNITO_SCOPE: ${{ vars.VITE_COGNITO_SCOPE || 'openid email profile' }}
+        run: npm run build
+      
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Sync to S3
+        working-directory: ./frontend
+        run: |
+          aws s3 sync dist/ s3://$FRONTEND_BUCKET --delete
+          echo "✅ Synced to S3 bucket: $FRONTEND_BUCKET"
+      
+      - name: Invalidate CloudFront cache
+        run: |
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id $CF_DIST_ID \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
+          
+          echo "Created CloudFront invalidation: $INVALIDATION_ID"
+          echo "⏳ Waiting for invalidation to complete..."
+          
+          aws cloudfront wait invalidation-completed \
+            --distribution-id $CF_DIST_ID \
+            --id $INVALIDATION_ID
+          
+          echo "✅ CloudFront cache invalidated"
+      
+      - name: Deployment summary
+        run: |
+          CF_DOMAIN=$(aws cloudfront get-distribution --id $CF_DIST_ID --query 'Distribution.DomainName' --output text)
+          
+          echo "### 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket**: \`$FRONTEND_BUCKET\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudFront**: \`$CF_DIST_ID\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 **Frontend URL**: https://$CF_DOMAIN" >> $GITHUB_STEP_SUMMARY

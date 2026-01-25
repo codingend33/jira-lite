@@ -238,6 +238,15 @@ npm run dev
 - Click Login with Cognito
 - After redirect, ensure Projects list loads
 
+## Day 10: AWS Deployment
+
+Day 10 covers cloud infrastructure and CI/CD, which is outside the scope of local development.
+
+See:
+- [AWS Deployment Guide](getting-started-aws.md) - Complete step-by-step guide
+- [Terraform Reference](terraform.md) - Daily operations and troubleshooting
+- [CI/CD Troubleshooting](ci-cd.md) - GitHub Actions issues
+
 ## Troubleshooting
 
 ### Port 5432 is already in use

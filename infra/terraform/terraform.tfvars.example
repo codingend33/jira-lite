@@ -1,0 +1,32 @@
+# Example configuration - Copy to terraform.tfvars and fill in your values
+# NEVER commit terraform.tfvars to git (it's in .gitignore)
+
+# AWS Configuration
+aws_region   = "ap-southeast-2"
+project_name = "jira-lite"
+environment  = "prod"
+
+# EC2 Configuration
+ec2_instance_type = "t4g.micro"
+ec2_key_name      = "jira-lite-prod-key"  # Create this in AWS EC2 Console or provide public key path
+# ec2_public_key_path = "~/.ssh/id_rsa.pub"  # Uncomment and set if creating new key pair
+
+# RDS Configuration
+rds_instance_class    = "db.t4g.micro"
+rds_db_name           = "jira_lite"
+rds_username          = "jira_admin"
+rds_password          = "CHANGE_ME_TO_SECURE_PASSWORD"  # REQUIRED: Use strong password
+rds_allocated_storage = 20
+
+# S3 Buckets (must be globally unique)
+attachments_bucket_name = "amzn-jira1-<YOUR_ACCOUNT_ID>"     # Add your account ID
+frontend_bucket_name    = "amzn-jira-frontend-<YOUR_ACCOUNT_ID>"
+
+# Existing Cognito Resources
+cognito_user_pool_id = "ap-southeast-2_XXXXXXXXX"  # Your existing User Pool ID
+cognito_client_id    = "xxxxxxxxxxxxxxxxxxxxxxxxxx"  # Your existing App Client ID
+cognito_domain       = "your-cognito-domain"       # Your Cognito domain (without .auth.region.amazoncognito.com)
+
+# GitHub Configuration (for OIDC CI/CD)
+github_org  = "your-github-username"  # Your GitHub username or organization
+github_repo = "jira-lite"             # Your repository name
