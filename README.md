@@ -43,6 +43,46 @@ npm run dev
 
 Full local runbook: `docs/runbooks/local-dev.md`
 
+## AWS Deployment (Production)
+
+> **📘 完整部署指南**: [docs/runbooks/getting-started-aws.md](docs/runbooks/getting-started-aws.md)
+
+### Architecture
+
+Deployed on AWS using Terraform (IaC):
+- **Compute**: EC2 t4g.micro (ARM) running Docker
+- **Database**: RDS PostgreSQL t4g.micro (private subnet)
+- **Storage**: S3 (attachments + frontend) + CloudFront CDN
+- **Auth**: Cognito User Pool + Lambda Pre Token Generation
+- **CI/CD**: GitHub Actions with OIDC authentication
+
+**Cost**: ~$0-5/month (Free Tier optimized)
+
+### Quick Deploy
+
+```bash
+# 1. Configure AWS CLI and create IAM user
+# 2. Bootstrap Terraform state
+cd infra/scripts && ./bootstrap-state.sh
+
+# 3. Configure and deploy
+cd ../terraform
+cp terraform.tfvars.example terraform.tfvars
+# Edit terraform.tfvars
+terraform init && terraform apply
+
+# 4. Configure GitHub Secrets/Variables
+# 5. Push to main → auto deploy
+```
+
+**First time?** Follow the step-by-step guide: [getting-started-aws.md](docs/runbooks/getting-started-aws.md)
+
+### Access URLs (after deployment)
+
+- **Frontend**: `https://<cloudfront_domain>`
+- **Backend API**: `http://<ec2_ip>:8080`
+- **API Docs**: `http://<ec2_ip>:8080/swagger-ui.html`
+
 ## Documentation
 
 - Runbook: `docs/runbooks/local-dev.md`
@@ -86,3 +126,4 @@ Optional Testcontainers (Docker required):
 .\mvnw.cmd test -Dtest=TicketCommentsTcIntegrationTest -DrunTestcontainers=true
 .\mvnw.cmd test -Dtest=TicketAttachmentsTcIntegrationTest -DrunTestcontainers=true
 ```
+

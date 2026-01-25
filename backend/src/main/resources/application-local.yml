@@ -22,7 +22,7 @@ spring:
     oauth2:
       resourceserver:
         jwt: # jwt configuration. need to be updated to the correct issuer uri. 
-          issuer-uri: ${COGNITO_ISSUER_URI:https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_hPmQc0XMN}
+          issuer-uri: ${COGNITO_ISSUER_URI:https://cognito-idp.ap-southeast-2.amazonaws.com/ap-southeast-2_OSgSyM6xO}
 logging:
   level:
     org.flywaydb: INFO # flyway level
@@ -32,7 +32,7 @@ app: # app configuration
   security:
     org-claim: org_id # org claim (from access Token)
   s3:
-    bucket: ${S3_BUCKET:amzn-jira}
+    bucket: ${S3_BUCKET:amzn-jira1}
     region: ${AWS_REGION:ap-southeast-2}
     upload-expiry-seconds: ${S3_UPLOAD_EXPIRY_SECONDS:300}
     download-expiry-seconds: ${S3_DOWNLOAD_EXPIRY_SECONDS:300}

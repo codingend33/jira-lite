@@ -2,20 +2,28 @@
 
 ### System Architecture
 
+
 ```mermaid
 flowchart LR
-  U[User] --> CF[CloudFront]
-  CF --> S3FE[S3 Frontend]
-  CF --> ALB[ALB]
-  ALB --> ECS[ECS Fargate - Spring Boot]
-  ECS --> RDS[(RDS Postgres)]
-  ECS --> S3AT[S3 Attachments]
-  ECS --> CW[CloudWatch Logs]
-  U --> COG[Cognito]
-  ECS --> COG
+  U[User Browser] --> CF[CloudFront - app domain]
+  CF --> S3FE[S3 Frontend Bucket]
 
+  U --> ALB[ALB - API domain]
+  ALB --> EC2["EC2 (Dockerized Spring Boot API)"]
+  EC2 --> RDS[(RDS Postgres)]
+  EC2 --> S3AT[S3 Attachments - presigned]
+  EC2 --> CW[CloudWatch Logs]
+
+  U --> COG[Cognito User Pool]
+  EC2 --> COG
+
+  GA[GitHub Actions] --> ECR[ECR Backend Image]
+  ECR --> EC2
+  GA --> S3FE
+  GA --> CF
 
 ```
+
 
 ### Backend Layering
 
