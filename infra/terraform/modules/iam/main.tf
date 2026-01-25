@@ -224,7 +224,8 @@ resource "aws_iam_role_policy" "github_cloudfront" {
       Action = [
         "cloudfront:CreateInvalidation",
         "cloudfront:GetInvalidation",
-        "cloudfront:ListInvalidations"
+        "cloudfront:ListInvalidations",
+        "cloudfront:GetDistribution"
       ]
       Resource = "arn:aws:cloudfront::*:distribution/${var.cloudfront_dist_id}"
     }]
