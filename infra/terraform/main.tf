@@ -56,6 +56,7 @@ module "s3_cdn" {
   environment             = var.environment
   attachments_bucket_name = var.attachments_bucket_name
   frontend_bucket_name    = var.frontend_bucket_name
+  ec2_public_dns          = module.compute.public_dns
 }
 
 # Lambda Module (Pre Token Generation)
