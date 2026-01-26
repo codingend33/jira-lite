@@ -98,6 +98,7 @@ AWS_REGION=ap-southeast-2
 
 # Server
 SERVER_PORT=8080
+CORS_ALLOWED_ORIGINS=${var.allowed_origins}
 ENVEOF
 
 chown ec2-user:ec2-user /home/ec2-user/.env

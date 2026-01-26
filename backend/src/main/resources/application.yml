@@ -9,6 +9,7 @@ server:
   port: ${SERVER_PORT:8080} # server port
   servlet:
     context-path: /api
+  forward-headers-strategy: native
 
 app:
   s3:
@@ -16,6 +17,8 @@ app:
     region: ${AWS_REGION:ap-southeast-2}
     upload-expiry-seconds: ${S3_UPLOAD_EXPIRY_SECONDS:300}
     download-expiry-seconds: ${S3_DOWNLOAD_EXPIRY_SECONDS:300}
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
 
 # Note:
 # - Do not hardcode local DB settings here.

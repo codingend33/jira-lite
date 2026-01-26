@@ -21,3 +21,9 @@ variable "ami_id" {
   type        = string
   default     = "ami-0b8b26105f255e39d" # Amazon Linux 2023 ARM 64-bit in Sydney
 }
+
+variable "allowed_origins" {
+  type        = string
+  description = "Comma-separated list of allowed CORS origins"
+  default     = "*"
+}
