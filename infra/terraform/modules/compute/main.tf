@@ -131,7 +131,7 @@ docker run -d \
 
 # Wait for health check
 sleep 10
-curl -f http://localhost:8080/health || echo "Warning: Health check failed"
+curl -f http://localhost:8080/api/health || echo "Warning: Health check failed"
 
 echo "Deployment complete!"
 DEPLOYEOF

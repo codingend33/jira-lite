@@ -129,7 +129,7 @@ jobs:
             sleep 15
             
             # Health check
-            if curl -f http://localhost:8080/health; then
+            if curl -f http://localhost:8080/api/health; then
               echo "✅ Deployment successful!"
             else
               echo "❌ Health check failed!"
