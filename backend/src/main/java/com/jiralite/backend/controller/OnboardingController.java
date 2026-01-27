@@ -27,7 +27,6 @@ import jakarta.validation.Valid;
  * Allows authenticated users without org_id to create organizations.
  */
 @RestController
-@RequestMapping("/api")
 public class OnboardingController {
 
     private final OnboardingService onboardingService;
