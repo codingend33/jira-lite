@@ -16,6 +16,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jiralite.backend.config.TestCognitoConfig;
 import com.jiralite.backend.security.TestJwtDecoderConfig;
 
 /**
@@ -23,7 +24,7 @@ import com.jiralite.backend.security.TestJwtDecoderConfig;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @ActiveProfiles("test")
-@Import(TestJwtDecoderConfig.class)
+@Import({ TestJwtDecoderConfig.class, TestCognitoConfig.class })
 class IntegrationTest {
 
     @Autowired
