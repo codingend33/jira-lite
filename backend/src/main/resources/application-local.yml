@@ -32,7 +32,16 @@ app: # app configuration
   security:
     org-claim: org_id # org claim (from access Token)
   s3:
-    bucket: ${S3_BUCKET:amzn-jira1}
+    bucket: ${S3_BUCKET:amzn-jira-attachments-854924710546}
     region: ${AWS_REGION:ap-southeast-2}
     upload-expiry-seconds: ${S3_UPLOAD_EXPIRY_SECONDS:300}
     download-expiry-seconds: ${S3_DOWNLOAD_EXPIRY_SECONDS:300}
+  cors:
+    allowed-origins: http://localhost:5173
+  frontend:
+    url: http://localhost:5173
+
+aws:
+  region: ap-southeast-2
+  cognito:
+    user-pool-id: ap-southeast-2_OSgSyM6xO
