@@ -231,3 +231,20 @@ resource "aws_iam_role_policy" "github_cloudfront" {
     }]
   })
 }
+
+# EC2 Cognito Policy (for onboarding)
+resource "aws_iam_role_policy" "ec2_cognito" {
+  name = "cognito-access"
+  role = aws_iam_role.ec2.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Action = [
+        "cognito-idp:AdminUpdateUserAttributes"
+      ]
+      Resource = "*"
+    }]
+  })
+}
