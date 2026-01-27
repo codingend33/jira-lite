@@ -11,3 +11,10 @@ app:
     region: ap-southeast-2
     upload-expiry-seconds: 300
     download-expiry-seconds: 300
+  frontend:
+    url: http://localhost:5173
+
+aws:
+  region: ap-southeast-2
+  cognito:
+    user-pool-id: test-pool-id
