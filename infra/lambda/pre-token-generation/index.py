@@ -80,10 +80,10 @@ def handler(event, context):
             
             event['response']['claimsOverrideDetails'] = {
                 'claimsToAddOrOverride': {
-                    'org_id': org_id
+                    'custom:org_id': org_id
                 }
             }
-            print(f"Injected org_id: {org_id}")
+            print(f"Injected custom:org_id: {org_id}")
         else:
             print(f"Warning: No active org found for user {cognito_sub}")
         
