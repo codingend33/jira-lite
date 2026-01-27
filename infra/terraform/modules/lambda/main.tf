@@ -19,6 +19,8 @@ resource "aws_lambda_function" "pre_token" {
   timeout       = 10
   memory_size   = 256
 
+  layers = ["arn:aws:lambda:ap-southeast-2:770693421928:layer:Klayers-p312-psycopg2-binary:1"]
+
   source_code_hash = data.archive_file.lambda.output_base64sha256
 
   vpc_config {

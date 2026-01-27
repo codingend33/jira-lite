@@ -87,6 +87,13 @@ public class InvitationService {
     public void acceptInvitation(String token, UUID userId, String email) {
         log.info("User {} accepting invitation with token {}", userId, token);
 
+        // Validate email is present (required from JWT)
+        if (email == null || email.isBlank()) {
+            log.error("Email is missing from JWT for user {}", userId);
+            throw new ApiException(ErrorCode.BAD_REQUEST,
+                    "Email is required to accept invitation. Please ensure your account has a verified email.", 400);
+        }
+
         // Find and validate invitation
         InvitationEntity invitation = invitationRepository.findByToken(token)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Invalid invitation token", 404));
@@ -96,8 +103,8 @@ public class InvitationService {
             throw new ApiException(ErrorCode.BAD_REQUEST, "This invitation has expired", 400);
         }
 
-        // Verify email matches
-        if (!invitation.getEmail().equalsIgnoreCase(email)) {
+        // Verify email matches (case-insensitive)
+        if (!invitation.getEmail().equalsIgnoreCase(email.trim())) {
             throw new ApiException(ErrorCode.FORBIDDEN,
                     "This invitation is for a different email address", 403);
         }
