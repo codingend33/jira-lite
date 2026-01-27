@@ -15,6 +15,7 @@ variable "rds_password" {
 }
 variable "ecr_repository_url" { type = string }
 variable "cognito_issuer_uri" { type = string }
+variable "cognito_user_pool_id" { type = string }
 variable "attachments_bucket_name" { type = string }
 variable "ami_id" {
   description = "AMI ID for EC2 instance (Amazon Linux 2023 ARM in ap-southeast-2)"

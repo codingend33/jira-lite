@@ -89,8 +89,12 @@ SPRING_DATASOURCE_PASSWORD=${var.rds_password}
 # Spring profiles
 SPRING_PROFILES_ACTIVE=prod
 
-# JWT/Cognito
+#JWT/Cognito
 SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI=${var.cognito_issuer_uri}
+COGNITO_USER_POOL_ID=${var.cognito_user_pool_id}
+
+# Frontend
+FRONTEND_URL=https://d1ad3a3b9ippri.cloudfront.net
 
 # S3
 APP_S3_BUCKET=${var.attachments_bucket_name}

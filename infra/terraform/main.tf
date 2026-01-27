@@ -94,8 +94,9 @@ module "compute" {
   rds_password            = var.rds_password
   ecr_repository_url      = module.ecr.repository_url
   cognito_issuer_uri      = "https://cognito-idp.${var.aws_region}.amazonaws.com/${var.cognito_user_pool_id}"
+  cognito_user_pool_id    = var.cognito_user_pool_id
   attachments_bucket_name = module.s3_cdn.attachments_bucket_name
-  allowed_origins         = "*" # Set to "*" to avoid circular dependency with CloudFront domain
+  allowed_origins         = "https://d1ad3a3b9ippri.cloudfront.net"
 }
 
 # CloudWatch Module

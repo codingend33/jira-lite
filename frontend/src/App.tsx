@@ -2,6 +2,8 @@ import { Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
+import CreateOrganizationPage from "./pages/CreateOrganizationPage";
+import AcceptInvitationPage from "./pages/AcceptInvitationPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import TicketsPage from "./pages/TicketsPage";
@@ -33,6 +35,15 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/invite" element={<AcceptInvitationPage />} />
+      <Route
+        path="/create-org"
+        element={
+          <ProtectedRoute>
+            <CreateOrganizationPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         element={
           <ProtectedRoute>

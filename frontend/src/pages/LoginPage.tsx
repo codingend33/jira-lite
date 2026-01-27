@@ -29,6 +29,16 @@ export default function LoginPage() {
     setLoading(true);
     handleCallback(code)
       .then(() => {
+        // Check for pending invitation token
+        const pendingToken = sessionStorage.getItem("pending-invitation-token");
+        if (pendingToken) {
+          sessionStorage.removeItem("pending-invitation-token");
+          navigate(`/invite?token=${pendingToken}`, { replace: true });
+          return;
+        }
+
+        // Check if user has org_id in token
+        // This will be handled by ProtectedRoute, which redirects to /create-org if missing
         navigate("/projects", { replace: true });
       })
       .catch(() => {
