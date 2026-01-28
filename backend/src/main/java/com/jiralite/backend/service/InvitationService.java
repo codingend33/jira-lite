@@ -22,6 +22,7 @@ import com.jiralite.backend.repository.OrgMembershipRepository;
 import com.jiralite.backend.repository.UserRepository;
 
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminUpdateUserAttributesRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
 
@@ -126,6 +127,7 @@ public class InvitationService {
         if (user.getId() == null) {
             user.setId(userId);
             user.setEmail(email);
+            user.setCognitoSub(userId.toString());
             user.setCreatedAt(now);
         }
         user.setUpdatedAt(now);
@@ -144,10 +146,14 @@ public class InvitationService {
         log.info("Created {} membership for user {} in org {}",
                 invitation.getRole(), userId, invitation.getOrgId());
 
-        // Update Cognito custom:org_id
+        // Update Cognito custom:org_id and add to group
         try {
             updateCognitoOrgId(userId.toString(), invitation.getOrgId().toString());
             log.info("Updated Cognito custom:org_id for user {}", userId);
+
+            // Add user to Cognito group based on role
+            addUserToGroup(userId.toString(), invitation.getRole());
+            log.info("Added user {} to Cognito group {}", userId, invitation.getRole());
         } catch (Exception e) {
             log.error("Failed to update Cognito attribute for user {}", userId, e);
             throw new ApiException(ErrorCode.INTERNAL_ERROR,
@@ -183,5 +189,22 @@ public class InvitationService {
                 .build();
 
         cognitoClient.adminUpdateUserAttributes(updateRequest);
+    }
+
+    /**
+     * Add user to Cognito group for RBAC.
+     */
+    private void addUserToGroup(String userId, String groupName) {
+        try {
+            AdminAddUserToGroupRequest request = AdminAddUserToGroupRequest.builder()
+                    .userPoolId(userPoolId)
+                    .username(userId)
+                    .groupName(groupName)
+                    .build();
+            cognitoClient.adminAddUserToGroup(request);
+        } catch (Exception e) {
+            log.warn("Failed to add user {} to group {}: {}", userId, groupName, e.getMessage());
+            // Don't throw - group membership is nice-to-have, org_id is critical
+        }
     }
 }
