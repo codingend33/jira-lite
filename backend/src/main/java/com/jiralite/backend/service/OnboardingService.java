@@ -72,6 +72,7 @@ public class OnboardingService {
             email = fetchEmailFromCognito(userId.toString());
             log.info("Fetched email from Cognito: {}", email);
         }
+        email = email.toLowerCase();
 
         // Check if user already has an organization
         if (!membershipRepository.findAllByIdUserIdOrderByCreatedAtDesc(userId).isEmpty()) {
@@ -95,8 +96,10 @@ public class OnboardingService {
         UserEntity user = userRepository.findById(userId).orElse(new UserEntity());
         if (user.getId() == null) {
             user.setId(userId);
-            user.setEmail(email);
             user.setCreatedAt(now);
+        }
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            user.setEmail(email);
         }
         // Ensure cognito_sub is set
         user.setCognitoSub(userId.toString());
