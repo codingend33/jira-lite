@@ -35,6 +35,8 @@ public class InvitationService {
     private static final Logger log = LoggerFactory.getLogger(InvitationService.class);
     private static final int INVITATION_EXPIRY_DAYS = 7;
     private static final String STATUS_ACTIVE = "ACTIVE";
+    private static final String ROLE_ADMIN = "ADMIN";
+    private static final String ROLE_MEMBER = "MEMBER";
 
     private final InvitationRepository invitationRepository;
     private final UserRepository userRepository;
@@ -88,12 +90,13 @@ public class InvitationService {
     public void acceptInvitation(String token, UUID userId, String email) {
         log.info("User {} accepting invitation with token {}", userId, token);
 
-        // Validate email is present (required from JWT)
+        // Validate email is present (from JWT) or fetch from Cognito as fallback
         if (email == null || email.isBlank()) {
-            log.error("Email is missing from JWT for user {}", userId);
-            throw new ApiException(ErrorCode.BAD_REQUEST,
-                    "Email is required to accept invitation. Please ensure your account has a verified email.", 400);
+            log.warn("Email is missing from JWT for user {}. Fetching from Cognito...", userId);
+            email = fetchEmailFromCognito(userId.toString());
+            log.info("Fetched email from Cognito for user {}: {}", userId, email);
         }
+        email = email.toLowerCase().trim();
 
         // Find and validate invitation
         InvitationEntity invitation = invitationRepository.findByToken(token)
@@ -105,7 +108,7 @@ public class InvitationService {
         }
 
         // Verify email matches (case-insensitive)
-        if (!invitation.getEmail().equalsIgnoreCase(email.trim())) {
+        if (!invitation.getEmail().equalsIgnoreCase(email)) {
             throw new ApiException(ErrorCode.FORBIDDEN,
                     "This invitation is for a different email address", 403);
         }
@@ -126,10 +129,12 @@ public class InvitationService {
         UserEntity user = userRepository.findById(userId).orElse(new UserEntity());
         if (user.getId() == null) {
             user.setId(userId);
-            user.setEmail(email);
-            user.setCognitoSub(userId.toString());
             user.setCreatedAt(now);
         }
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            user.setEmail(email);
+        }
+        user.setCognitoSub(userId.toString());
         user.setUpdatedAt(now);
         userRepository.save(user);
 
@@ -149,15 +154,11 @@ public class InvitationService {
         // Update Cognito custom:org_id and add to group
         try {
             updateCognitoOrgId(userId.toString(), invitation.getOrgId().toString());
-            log.info("Updated Cognito custom:org_id for user {}", userId);
-
-            // Add user to Cognito group based on role
             addUserToGroup(userId.toString(), invitation.getRole());
-            log.info("Added user {} to Cognito group {}", userId, invitation.getRole());
+            log.info("Updated Cognito custom:org_id and group for user {}", userId);
         } catch (Exception e) {
-            log.error("Failed to update Cognito attribute for user {}", userId, e);
-            throw new ApiException(ErrorCode.INTERNAL_ERROR,
-                    "Invitation accepted but failed to update Cognito attributes. Please contact support.", 500);
+            log.error("Failed to sync Cognito attributes/groups for user {}. User may need to re-login.", userId, e);
+            // Do not roll back DB state; allow user to proceed and re-login to refresh claims.
         }
 
         // Delete invitation
@@ -195,6 +196,10 @@ public class InvitationService {
      * Add user to Cognito group for RBAC.
      */
     private void addUserToGroup(String userId, String groupName) {
+        if (!ROLE_ADMIN.equals(groupName) && !ROLE_MEMBER.equals(groupName)) {
+            log.warn("Unknown group {}, skip adding user {}", groupName, userId);
+            return;
+        }
         try {
             AdminAddUserToGroupRequest request = AdminAddUserToGroupRequest.builder()
                     .userPoolId(userPoolId)
@@ -205,6 +210,24 @@ public class InvitationService {
         } catch (Exception e) {
             log.warn("Failed to add user {} to group {}: {}", userId, groupName, e.getMessage());
             // Don't throw - group membership is nice-to-have, org_id is critical
+        }
+    }
+
+    private String fetchEmailFromCognito(String userId) {
+        try {
+            var response = cognitoClient.adminGetUser(req -> req
+                    .userPoolId(userPoolId)
+                    .username(userId));
+
+            return response.userAttributes().stream()
+                    .filter(attr -> "email".equals(attr.name()))
+                    .map(AttributeType::value)
+                    .findFirst()
+                    .orElseThrow(() -> new ApiException(ErrorCode.BAD_REQUEST, "User has no email in Cognito", 400));
+        } catch (ApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ApiException(ErrorCode.INTERNAL_ERROR, "Failed to fetch user email from Cognito", 500);
         }
     }
 }

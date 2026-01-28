@@ -42,6 +42,9 @@ public class TenantContextFilter extends OncePerRequestFilter {
             if (authentication != null && authentication.isAuthenticated() && authentication.getPrincipal() instanceof Jwt jwt) {
                 String userId = jwt.getSubject();
                 String orgId = jwt.getClaimAsString(orgClaim);
+                if ((orgId == null || orgId.isBlank()) && !"custom:org_id".equals(orgClaim)) {
+                    orgId = jwt.getClaimAsString("custom:org_id");
+                }
                 Set<String> roles = authentication.getAuthorities()
                         .stream()
                         .map(GrantedAuthority::getAuthority)
