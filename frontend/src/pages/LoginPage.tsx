@@ -29,11 +29,17 @@ export default function LoginPage() {
     setLoading(true);
     handleCallback(code)
       .then(() => {
-        // Check for pending invitation token
-        const pendingToken = sessionStorage.getItem("pending-invitation-token");
-        if (pendingToken) {
-          sessionStorage.removeItem("pending-invitation-token");
-          navigate(`/invite?token=${pendingToken}`, { replace: true });
+        // Check for pending invitation token (from State param or Storage)
+        const stateToken = params.get("state");
+        const pendingToken = localStorage.getItem("pending-invitation-token");
+        const tokenToUse = stateToken || pendingToken;
+
+        console.log("Auth callback success. State token:", stateToken, "Storage token:", pendingToken);
+
+        if (tokenToUse) {
+          console.log("Found pending token, redirecting to invite page...");
+          localStorage.removeItem("pending-invitation-token");
+          navigate(`/invite?token=${tokenToUse}`, { replace: true });
           return;
         }
 
