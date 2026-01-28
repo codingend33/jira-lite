@@ -15,6 +15,7 @@ import {
 import { useState } from "react";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
+import InviteMembersModal from "../components/InviteMembersModal";
 import {
   useArchiveProject,
   useCreateProject,
@@ -33,6 +34,7 @@ export default function ProjectsPage() {
   const deleteProject = useDeleteProject();
 
   const [open, setOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [form, setForm] = useState({ key: "", name: "", description: "" });
 
   const handleCreate = async () => {
@@ -56,10 +58,17 @@ export default function ProjectsPage() {
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
           Projects
         </Typography>
-        <Button variant="contained" onClick={() => setOpen(true)}>
-          New Project
-        </Button>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button variant="outlined" onClick={() => setInviteOpen(true)}>
+            Invite Members
+          </Button>
+          <Button variant="contained" onClick={() => setOpen(true)}>
+            New Project
+          </Button>
+        </Box>
       </Box>
+
+      <InviteMembersModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
       <Stack spacing={2}>
         {projectsQuery.data?.map((project) => (
