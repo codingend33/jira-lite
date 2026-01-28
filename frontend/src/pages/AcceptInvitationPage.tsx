@@ -38,8 +38,8 @@ export default function AcceptInvitationPage() {
             console.log("Storing pending invitation token:", token);
             localStorage.setItem("pending-invitation-token", token);
 
-            // Initiate login immediately
-            buildAuthorizeUrl().then(url => {
+            // Initiate login immediately, passing token in 'state' to persist across redirects
+            buildAuthorizeUrl(undefined, token).then(url => {
                 console.log("Redirecting to Cognito:", url);
                 window.location.assign(url);
             });

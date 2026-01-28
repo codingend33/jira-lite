@@ -8,7 +8,7 @@ const logoutUri = import.meta.env.VITE_COGNITO_LOGOUT_URI;
 
 const verifierKey = "jira-lite-pkce";
 
-export async function buildAuthorizeUrl(identityProvider?: string): Promise<string> {
+export async function buildAuthorizeUrl(identityProvider?: string, state?: string): Promise<string> {
   const verifier = generateVerifier();
   const challenge = await generateChallenge(verifier);
   sessionStorage.setItem(verifierKey, verifier);
@@ -24,6 +24,10 @@ export async function buildAuthorizeUrl(identityProvider?: string): Promise<stri
 
   if (identityProvider) {
     params.set("identity_provider", identityProvider);
+  }
+
+  if (state) {
+    params.set("state", state);
   }
 
   return `https://${domain}/oauth2/authorize?${params.toString()}`;
