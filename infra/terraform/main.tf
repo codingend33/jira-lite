@@ -107,3 +107,12 @@ module "cloudwatch" {
   environment  = var.environment
   ec2_instance_id = module.compute.instance_id
 }
+
+# Budgets Module
+module "budgets" {
+  source = "./modules/budgets"
+
+  project_name = var.project_name
+  environment  = var.environment
+  alert_email  = var.alert_email
+}

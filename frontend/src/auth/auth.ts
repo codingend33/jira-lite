@@ -1,3 +1,4 @@
+import { jwtDecode } from "jwt-decode";
 import { generateChallenge, generateVerifier } from "./pkce";
 import { AuthTokens } from "./storage";
 
@@ -92,14 +93,8 @@ export type JwtProfile = {
 };
 
 export function decodeJwt(token: string): JwtProfile {
-  const parts = token.split(".");
-  if (parts.length < 2) {
-    return {};
-  }
-  const payload = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-  const decoded = atob(payload + "==".slice((payload.length + 2) % 4));
   try {
-    return JSON.parse(decoded) as JwtProfile;
+    return jwtDecode<JwtProfile>(token);
   } catch {
     return {};
   }

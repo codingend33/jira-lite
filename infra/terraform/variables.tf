@@ -125,3 +125,8 @@ variable "github_repo" {
   description = "GitHub repository name"
   type        = string
 }
+
+variable "alert_email" {
+  description = "Email address for billing alerts"
+  type        = string
+}

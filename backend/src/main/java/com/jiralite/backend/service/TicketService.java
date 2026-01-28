@@ -225,7 +225,7 @@ public class TicketService {
         return switch (current) {
             case "OPEN" -> next.equals("IN_PROGRESS") || next.equals("DONE") || next.equals("CANCELLED");
             case "IN_PROGRESS" -> next.equals("DONE") || next.equals("CANCELLED");
-            case "DONE", "CANCELLED" -> false;
+            case "DONE", "CANCELLED" -> next.equals("OPEN") || next.equals("IN_PROGRESS");
             default -> false;
         };
     }

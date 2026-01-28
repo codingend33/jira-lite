@@ -69,6 +69,9 @@ systemctl start docker
 systemctl enable docker
 usermod -aG docker ec2-user
 
+# Install CloudWatch Agent (for future extensions/metrics)
+yum install -y amazon-cloudwatch-agent
+
 # Install Docker Compose
 curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
 chmod +x /usr/local/bin/docker-compose
@@ -131,6 +134,10 @@ docker run -d \
   --name jira-backend \
   --restart unless-stopped \
   -p 8080:8080 \
+  --log-driver=awslogs \
+  --log-opt awslogs-region=ap-southeast-2 \
+  --log-opt awslogs-group=/aws/ec2/${var.project_name}-${var.environment}-backend \
+  --log-opt awslogs-stream=jira-backend \
   --env-file /home/ec2-user/.env \
   ${var.ecr_repository_url}:latest
 
