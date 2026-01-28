@@ -16,6 +16,7 @@ import { useState } from "react";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
 import InviteMembersModal from "../components/InviteMembersModal";
+import { useAuth } from "../auth/AuthContext";
 import {
   useArchiveProject,
   useCreateProject,
@@ -27,6 +28,7 @@ import { useNavigate } from "react-router-dom";
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
+  const { state: authState } = useAuth();
   const projectsQuery = useProjects();
   const createProject = useCreateProject();
   const archiveProject = useArchiveProject();
@@ -59,9 +61,11 @@ export default function ProjectsPage() {
           Projects
         </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
-          <Button variant="outlined" onClick={() => setInviteOpen(true)}>
-            Invite Members
-          </Button>
+          {authState.profile?.["cognito:groups"]?.includes("ADMIN") && (
+            <Button variant="outlined" onClick={() => setInviteOpen(true)}>
+              Invite Members
+            </Button>
+          )}
           <Button variant="contained" onClick={() => setOpen(true)}>
             New Project
           </Button>
