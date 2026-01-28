@@ -34,9 +34,15 @@ export default function AcceptInvitationPage() {
         }
 
         if (!isAuthenticated) {
-            // Store token and redirect to login
-            sessionStorage.setItem("pending-invitation-token", token);
-            navigate("/login", { replace: true });
+            // Store token and redirect directly to Cognito
+            console.log("Storing pending invitation token:", token);
+            localStorage.setItem("pending-invitation-token", token);
+
+            // Initiate login immediately
+            buildAuthorizeUrl().then(url => {
+                console.log("Redirecting to Cognito:", url);
+                window.location.assign(url);
+            });
             return;
         }
 
