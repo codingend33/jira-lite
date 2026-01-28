@@ -1,6 +1,7 @@
 """
-Lambda Pre Token Generation Function
-Injects org_id, email, and cognito:groups into Cognito JWT claims from database lookup
+Lambda Pre Token Generation Function (V2_0 Format)
+Injects org_id, email, and cognito:groups into Cognito JWT claims from database lookup.
+Supports both Access Token and ID Token modification.
 """
 
 import json
@@ -71,7 +72,9 @@ def query_user_membership(user_id):
 
 def handler(event, context):
     """
-    Lambda handler for Cognito Pre Token Generation trigger
+    Lambda handler for Cognito Pre Token Generation trigger (V2_0 Format)
+    
+    V2_0 allows injecting claims into BOTH Access Token and ID Token.
     
     Injects the following claims:
     - email: user's email address (always, for backend compatibility)
@@ -84,7 +87,7 @@ def handler(event, context):
         context: Lambda context object
         
     Returns:
-        Modified event with claims added
+        Modified event with claims added to both Access and ID tokens
     """
     user_id = None
     email = None
@@ -97,7 +100,7 @@ def handler(event, context):
         
         print(json.dumps({
             "level": "INFO",
-            "message": "Processing token generation",
+            "message": "Processing token generation (V2_0)",
             "user_id": user_id,
             "email": email
         }))
@@ -106,12 +109,14 @@ def handler(event, context):
         if 'response' not in event:
             event['response'] = {}
         
-        claims_to_add = {}
-        groups_to_add = []
+        access_token_claims = {}
+        id_token_claims = {}
+        groups_to_override = []
         
-        # ALWAYS inject email if present (backend requires it)
+        # ALWAYS inject email if present (backend requires it in Access Token)
         if email:
-            claims_to_add['email'] = email
+            access_token_claims['email'] = email
+            id_token_claims['email'] = email
         
         # Query org and role from database
         membership = query_user_membership(user_id)
@@ -123,13 +128,15 @@ def handler(event, context):
             # Inject org_id with BOTH keys for compatibility
             # - 'org_id': for backend TenantContextFilter (default config)
             # - 'custom:org_id': for Cognito custom attribute pattern
-            claims_to_add['org_id'] = org_id
-            claims_to_add['custom:org_id'] = org_id
+            access_token_claims['org_id'] = org_id
+            access_token_claims['custom:org_id'] = org_id
+            id_token_claims['org_id'] = org_id
+            id_token_claims['custom:org_id'] = org_id
             
             # Inject role into cognito:groups for RBAC
             # SecurityConfig.cognitoGroupsConverter() expects ADMIN or MEMBER
             if role in ('ADMIN', 'MEMBER'):
-                groups_to_add.append(role)
+                groups_to_override.append(role)
             
             print(json.dumps({
                 "level": "INFO",
@@ -146,23 +153,35 @@ def handler(event, context):
                 "hint": "User may be new or needs to create/join an organization"
             }))
         
-        # Build response
-        event['response']['claimsOverrideDetails'] = {}
+        # Build V2_0 response structure
+        # See: https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-token-generation.html
+        event['response']['claimsAndScopeOverrideDetails'] = {}
         
-        if claims_to_add:
-            event['response']['claimsOverrideDetails']['claimsToAddOrOverride'] = claims_to_add
+        # Access Token customization
+        if access_token_claims:
+            event['response']['claimsAndScopeOverrideDetails']['accessTokenGeneration'] = {
+                'claimsToAddOrOverride': access_token_claims
+            }
         
-        if groups_to_add:
-            event['response']['claimsOverrideDetails']['groupOverrideDetails'] = {
-                'groupsToOverride': groups_to_add
+        # ID Token customization
+        if id_token_claims:
+            event['response']['claimsAndScopeOverrideDetails']['idTokenGeneration'] = {
+                'claimsToAddOrOverride': id_token_claims
+            }
+        
+        # Group override (affects cognito:groups claim in both tokens)
+        if groups_to_override:
+            event['response']['claimsAndScopeOverrideDetails']['groupOverrideDetails'] = {
+                'groupsToOverride': groups_to_override
             }
         
         print(json.dumps({
             "level": "INFO",
-            "message": "Token generation complete",
+            "message": "Token generation complete (V2_0)",
             "user_id": user_id,
-            "claims_added": list(claims_to_add.keys()),
-            "groups_added": groups_to_add
+            "access_token_claims": list(access_token_claims.keys()),
+            "id_token_claims": list(id_token_claims.keys()),
+            "groups_added": groups_to_override
         }))
         
         return event

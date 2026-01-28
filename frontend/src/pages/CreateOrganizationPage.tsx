@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { createOrganization } from "../api/onboarding";
 import Loading from "../components/Loading";
+import { buildAuthorizeUrl } from "../auth/auth";
 
 export default function CreateOrganizationPage() {
     const [orgName, setOrgName] = useState("");
@@ -10,9 +11,11 @@ export default function CreateOrganizationPage() {
 
     const mutation = useMutation({
         mutationFn: createOrganization,
-        onSuccess: () => {
-            // Force token refresh by reloading the page
-            window.location.href = "/projects";
+        onSuccess: async () => {
+            // Force re-login to get fresh token with org_id and role claims
+            // Cognito will issue a new token after org creation
+            const url = await buildAuthorizeUrl();
+            window.location.assign(url);
         },
     });
 

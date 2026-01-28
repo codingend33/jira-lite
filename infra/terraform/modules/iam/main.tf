@@ -242,7 +242,9 @@ resource "aws_iam_role_policy" "ec2_cognito" {
     Statement = [{
       Effect = "Allow"
       Action = [
-        "cognito-idp:AdminUpdateUserAttributes"
+        "cognito-idp:AdminUpdateUserAttributes",
+        "cognito-idp:AdminGetUser",
+        "cognito-idp:AdminAddUserToGroup"
       ]
       Resource = "*"
     }]
