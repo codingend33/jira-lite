@@ -66,9 +66,11 @@ export default function ProjectsPage() {
               Invite Members
             </Button>
           )}
-          <Button variant="contained" onClick={() => setOpen(true)}>
-            New Project
-          </Button>
+          {authState.profile?.["cognito:groups"]?.includes("ADMIN") && (
+            <Button variant="contained" onClick={() => setOpen(true)}>
+              New Project
+            </Button>
+          )}
         </Box>
       </Box>
 
