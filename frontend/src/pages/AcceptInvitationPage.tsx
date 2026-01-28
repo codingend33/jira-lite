@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { acceptInvitation } from "../api/onboarding";
 import Loading from "../components/Loading";
 import { useAuth } from "../auth/AuthContext";
+import { buildAuthorizeUrl } from "../auth/auth";
 
 export default function AcceptInvitationPage() {
     const [searchParams] = useSearchParams();
@@ -16,9 +17,10 @@ export default function AcceptInvitationPage() {
 
     const mutation = useMutation({
         mutationFn: (token: string) => acceptInvitation(token),
-        onSuccess: () => {
-            // Force token refresh by reloading
-            window.location.href = "/projects";
+        onSuccess: async () => {
+            // Force re-login to get fresh token with org_id and role claims
+            const url = await buildAuthorizeUrl();
+            window.location.assign(url);
         },
         onError: (error: any) => {
             setErrorMessage(error.response?.data?.message || "Failed to accept invitation");
