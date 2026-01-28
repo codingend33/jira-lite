@@ -4,6 +4,8 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +29,7 @@ import com.jiralite.backend.security.tenant.TenantContextHolder;
 @Service
 public class TicketAttachmentService {
 
+    private static final Logger log = LoggerFactory.getLogger(TicketAttachmentService.class);
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_UPLOADED = "UPLOADED";
 
@@ -118,9 +121,19 @@ public class TicketAttachmentService {
         if (!attachment.getTicketId().equals(ticketId)) {
             throw new ApiException(ErrorCode.NOT_FOUND, "Attachment not found", HttpStatus.NOT_FOUND.value());
         }
+
+        if (attachment.getS3Key() != null && !attachment.getS3Key().isBlank()) {
+            try {
+                s3PresignService.deleteObject(attachment.getS3Key());
+            } catch (Exception e) {
+                // Log and continue to avoid leaving DB state inconsistent with S3
+                // (best-effort cleanup).
+                // A more robust approach would enqueue a retry job.
+                log.warn("Failed to delete S3 object for attachment {}: {}", attachmentId, e.getMessage());
+            }
+        }
+
         attachmentRepository.delete(attachment);
-        // S3 object cleanup is not performed here to avoid unintended deletions. Add explicit S3
-        // deletion if your retention policy requires it.
     }
 
     private TicketEntity getTicket(UUID ticketId) {
