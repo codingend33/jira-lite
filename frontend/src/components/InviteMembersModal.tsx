@@ -21,7 +21,6 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { createInvitation, CreateInvitationResponse } from "../api/onboarding";
 import { useAuth } from "../auth/AuthContext";
-import { useNotify } from "./Notifications";
 
 interface InviteMembersModalProps {
     open: boolean;
@@ -32,15 +31,13 @@ export default function InviteMembersModal({ open, onClose }: InviteMembersModal
     const [email, setEmail] = useState("");
     const [role, setRole] = useState("MEMBER");
     const { state } = useAuth();
-    const { notifySuccess } = useNotify();
 
     const orgId = (state.profile as any)?.["custom:org_id"];
 
     const mutation = useMutation<CreateInvitationResponse, Error, void>({
         mutationFn: () => createInvitation(orgId, { email, role }),
         onSuccess: () => {
-            // Don't reset form or close modal - show success with invitation link
-            notifySuccess("邀请已发送");
+            // Don't reset form or close modal - keep showing invitation link
         },
     });
 
