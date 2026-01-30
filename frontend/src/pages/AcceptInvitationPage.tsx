@@ -16,14 +16,16 @@ export default function AcceptInvitationPage() {
     const token = searchParams.get("token");
 
     const mutation = useMutation({
-        mutationFn: (token: string) => acceptInvitation(token),
+        mutationFn: (tokenValue: string) => acceptInvitation(tokenValue),
         onSuccess: async () => {
             // Force re-login to get fresh token with org_id and role claims
             const url = await buildAuthorizeUrl();
             window.location.assign(url);
         },
-        onError: (error: any) => {
-            setErrorMessage(error.response?.data?.message || "Failed to accept invitation");
+        onError: (error: unknown) => {
+            const message =
+                error instanceof Error ? error.message : "Failed to accept invitation";
+            setErrorMessage(message);
         },
     });
 
@@ -48,7 +50,7 @@ export default function AcceptInvitationPage() {
 
         // Auto-accept if authenticated and token exists
         mutation.mutate(token);
-    }, [token, isAuthenticated]);
+    }, [token, isAuthenticated, mutation]);
 
     if (!token) {
         return (

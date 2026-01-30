@@ -27,21 +27,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const handleCallback = async (code: string) => {
-
-    try {
-      const tokens = await exchangeCodeForTokens(code);
-
-      saveTokens(tokens);
-
-      setState({
-        tokens,
-        profile: decodeJwt(tokens.idToken)
-      });
-
-    } catch (error) {
-
-      throw error;
-    }
+    const tokens = await exchangeCodeForTokens(code);
+    saveTokens(tokens);
+    setState({
+      tokens,
+      profile: decodeJwt(tokens.idToken)
+    });
   };
 
   const logout = () => {

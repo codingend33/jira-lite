@@ -34,7 +34,13 @@ export function useCreateTicket() {
 export function useUpdateTicket() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: any }) => updateTicket(id, payload),
+    mutationFn: ({
+      id,
+      payload
+    }: {
+      id: string;
+      payload: { title?: string; description?: string; priority?: string; assigneeId?: string | null };
+    }) => updateTicket(id, payload),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ticketKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: ticketKeys.all });
