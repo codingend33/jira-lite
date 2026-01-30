@@ -26,7 +26,7 @@ describe("ProtectedRoute", () => {
   it("renders children when authenticated and has org", () => {
     mockedUseAuth.mockReturnValue({
       isAuthenticated: true,
-      state: { profile: { "custom:org_id": "org-1" } },
+      state: { tokens: null, profile: { "custom:org_id": "org-1" } as any },
       login: vi.fn(),
       handleCallback: vi.fn(),
       logout: vi.fn()
@@ -38,7 +38,7 @@ describe("ProtectedRoute", () => {
   it("redirects to /create-org when missing org_id", () => {
     mockedUseAuth.mockReturnValue({
       isAuthenticated: true,
-      state: { profile: {} },
+      state: { tokens: null, profile: {} },
       login: vi.fn(),
       handleCallback: vi.fn(),
       logout: vi.fn()
@@ -50,7 +50,7 @@ describe("ProtectedRoute", () => {
   it("redirects to /login when unauthenticated", () => {
     mockedUseAuth.mockReturnValue({
       isAuthenticated: false,
-      state: { profile: null },
+      state: { tokens: null, profile: null },
       login: vi.fn(),
       handleCallback: vi.fn(),
       logout: vi.fn()

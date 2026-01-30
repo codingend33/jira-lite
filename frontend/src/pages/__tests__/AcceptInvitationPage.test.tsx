@@ -41,7 +41,7 @@ describe("AcceptInvitationPage", () => {
   it("shows error when token is missing", () => {
     mockedUseAuth.mockReturnValue({
       isAuthenticated: false,
-      state: { profile: null },
+      state: { tokens: null, profile: null },
       login: vi.fn(),
       handleCallback: vi.fn(),
       logout: vi.fn()
@@ -56,7 +56,7 @@ describe("AcceptInvitationPage", () => {
     const mutate = vi.fn();
     mockedUseAuth.mockReturnValue({
       isAuthenticated: true,
-      state: { profile: {} },
+      state: { tokens: null, profile: {} },
       login: vi.fn(),
       handleCallback: vi.fn(),
       logout: vi.fn()
@@ -78,7 +78,7 @@ describe("AcceptInvitationPage", () => {
   it("stores token and redirects when unauthenticated", async () => {
     mockedUseAuth.mockReturnValue({
       isAuthenticated: false,
-      state: { profile: null },
+      state: { tokens: null, profile: null },
       login: vi.fn(),
       handleCallback: vi.fn(),
       logout: vi.fn()

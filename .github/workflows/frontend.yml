@@ -6,6 +6,11 @@ on:
     paths:
       - 'frontend/**'
       - '.github/workflows/frontend.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
   workflow_dispatch:
 
 env:
@@ -54,18 +59,21 @@ jobs:
         run: npm run build
       
       - name: Configure AWS credentials (OIDC)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
           aws-region: ${{ env.AWS_REGION }}
       
       - name: Sync to S3
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         working-directory: ./frontend
         run: |
           aws s3 sync dist/ s3://$FRONTEND_BUCKET --delete
           echo "✅ Synced to S3 bucket: $FRONTEND_BUCKET"
       
       - name: Invalidate CloudFront cache
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           INVALIDATION_ID=$(aws cloudfront create-invalidation \
             --distribution-id $CF_DIST_ID \
@@ -83,6 +91,7 @@ jobs:
           echo "✅ CloudFront cache invalidated"
       
       - name: Deployment summary
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
           CF_DOMAIN=$(aws cloudfront get-distribution --id $CF_DIST_ID --query 'Distribution.DomainName' --output text)
           
