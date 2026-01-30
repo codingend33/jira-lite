@@ -33,7 +33,7 @@ export default function InviteMembersModal({ open, onClose }: InviteMembersModal
     const [role, setRole] = useState("MEMBER");
     const { state } = useAuth();
 
-    const orgId = (state.profile as ProfileWithOrg | null)?.["custom:org_id"];
+    const orgId = (state.profile as ProfileWithOrg | null)?.["custom:org_id"] ?? "";
 
     const mutation = useMutation<CreateInvitationResponse, Error, void>({
         mutationFn: () => createInvitation(orgId, { email, role }),

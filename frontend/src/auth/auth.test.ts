@@ -44,7 +44,7 @@ describe("auth flows", () => {
 
   it("exchangeCodeForTokens posts code and returns tokens", async () => {
     sessionStorage.setItem("jira-lite-pkce", "verifier");
-    const fetchSpy = vi.spyOn(global, "fetch" as any).mockResolvedValue(
+    const fetchSpy = vi.spyOn(globalThis, "fetch" as any).mockResolvedValue(
       new Response(
         JSON.stringify({
           access_token: "a",
