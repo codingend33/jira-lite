@@ -18,11 +18,11 @@ export default function App() {
 
   useEffect(() => {
     const handleAuthFailed = () => {
-      notifyError("登录已过期，请重新登录");
+      notifyError("Session expired, please sign in again.");
       navigate("/login", { replace: true });
     };
     const handleForbidden = () => {
-      notifyError("没有权限执行此操作");
+      notifyError("You don't have permission to perform this action.");
     };
     window.addEventListener("api:auth-failed", handleAuthFailed);
     window.addEventListener("api:forbidden", handleForbidden);
