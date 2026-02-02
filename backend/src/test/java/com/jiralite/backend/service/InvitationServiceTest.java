@@ -18,6 +18,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.ArgumentCaptor;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mockito;
 
 import com.jiralite.backend.entity.InvitationEntity;
 import com.jiralite.backend.entity.OrgMembershipEntity;
@@ -28,11 +29,12 @@ import com.jiralite.backend.repository.OrgMembershipRepository;
 import com.jiralite.backend.repository.UserRepository;
 
 import software.amazon.awssdk.services.cognitoidentityprovider.CognitoIdentityProviderClient;
-import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminGetUserRequest;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminGetUserResponse;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminUpdateUserAttributesResponse;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupResponse;
 import software.amazon.awssdk.services.cognitoidentityprovider.model.AttributeType;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminUpdateUserAttributesRequest;
+import software.amazon.awssdk.services.cognitoidentityprovider.model.AdminAddUserToGroupRequest;
 
 @ExtendWith(MockitoExtension.class)
 class InvitationServiceTest {
@@ -65,10 +67,10 @@ class InvitationServiceTest {
         AdminGetUserResponse response = AdminGetUserResponse.builder()
                 .userAttributes(AttributeType.builder().name("email").value("invitee@example.com").build())
                 .build();
-        when(cognitoClient.adminGetUser(any(Consumer.class))).thenReturn(response);
-        when(cognitoClient.adminUpdateUserAttributes(any(Consumer.class)))
+        Mockito.lenient().when(cognitoClient.adminGetUser(any(Consumer.class))).thenReturn(response);
+        Mockito.lenient().when(cognitoClient.adminUpdateUserAttributes(any(AdminUpdateUserAttributesRequest.class)))
                 .thenReturn(AdminUpdateUserAttributesResponse.builder().build());
-        when(cognitoClient.adminAddUserToGroup(any(Consumer.class)))
+        Mockito.lenient().when(cognitoClient.adminAddUserToGroup(any(AdminAddUserToGroupRequest.class)))
                 .thenReturn(AdminAddUserToGroupResponse.builder().build());
     }
 

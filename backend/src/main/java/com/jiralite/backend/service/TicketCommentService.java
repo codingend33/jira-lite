@@ -13,6 +13,7 @@ import com.jiralite.backend.dto.CreateCommentRequest;
 import com.jiralite.backend.dto.ErrorCode;
 import com.jiralite.backend.entity.TicketCommentEntity;
 import com.jiralite.backend.entity.TicketEntity;
+import com.jiralite.backend.audit.LogAudit;
 import com.jiralite.backend.exception.ApiException;
 import com.jiralite.backend.repository.TicketCommentRepository;
 import com.jiralite.backend.repository.TicketRepository;
@@ -27,12 +28,15 @@ public class TicketCommentService {
 
     private final TicketRepository ticketRepository;
     private final TicketCommentRepository commentRepository;
+    private final NotificationService notificationService;
 
     public TicketCommentService(
             TicketRepository ticketRepository,
-            TicketCommentRepository commentRepository) {
+            TicketCommentRepository commentRepository,
+            NotificationService notificationService) {
         this.ticketRepository = ticketRepository;
         this.commentRepository = commentRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -45,6 +49,7 @@ public class TicketCommentService {
     }
 
     @Transactional
+    @LogAudit(action = "COMMENT_CREATE", entityType = "COMMENT")
     public CommentResponse createComment(UUID ticketId, CreateCommentRequest request) {
         TicketEntity ticket = getTicket(ticketId);
         OffsetDateTime now = OffsetDateTime.now();
@@ -59,7 +64,16 @@ public class TicketCommentService {
         comment.setUpdatedAt(now);
 
         TicketCommentEntity saved = commentRepository.save(comment);
+        notifyAssignee(ticket, "COMMENT_CREATED", "New comment on " + ticket.getTicketKey());
         return toResponse(saved);
+    }
+
+    private void notifyAssignee(TicketEntity ticket, String type, String content) {
+        UUID assignee = ticket.getAssigneeId();
+        UUID author = parseUuidOrNull(getUserId());
+        if (assignee != null && !assignee.equals(author)) {
+            notificationService.createNotification(assignee, type, content);
+        }
     }
 
     private TicketEntity getTicket(UUID ticketId) {

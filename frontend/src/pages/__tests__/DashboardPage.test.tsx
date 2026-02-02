@@ -1,0 +1,49 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import DashboardPage from "../DashboardPage";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router-dom";
+import { vi } from "vitest";
+
+import * as client from "../../api/client";
+import * as auditApi from "../../api/audit";
+
+vi.mock("../../api/client");
+vi.mock("../../api/audit");
+
+const apiRequest = vi.mocked(client.apiRequest);
+const listAuditLogs = vi.mocked(auditApi.listAuditLogs);
+
+function renderWithProviders(ui: React.ReactElement) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <MemoryRouter>
+      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+    </MemoryRouter>
+  );
+}
+
+describe("DashboardPage", () => {
+  it("renders metrics and activity stream", async () => {
+    apiRequest.mockResolvedValue({ activeProjects: 3, myTickets: 4, members: 5 });
+    listAuditLogs.mockResolvedValue([
+      {
+        id: "1",
+        action: "PROJECT_CREATE",
+        details: "P1 created",
+        entityType: "PROJECT",
+        entityId: "p1",
+        actorUserId: "u1",
+        createdAt: new Date().toISOString()
+      }
+    ]);
+
+    renderWithProviders(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("3")).toBeInTheDocument();
+      expect(screen.getByText("4")).toBeInTheDocument();
+      expect(screen.getByText("5")).toBeInTheDocument();
+      expect(screen.getByText(/P1 created/i)).toBeInTheDocument();
+    });
+  });
+});

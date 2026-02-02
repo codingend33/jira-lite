@@ -83,6 +83,12 @@ public class S3PresignService {
                 OffsetDateTime.now().plusSeconds(downloadExpiry.getSeconds()));
     }
 
+    public PresignResult presignAvatar(java.util.UUID userId, String fileName, String contentType) {
+        String safeName = fileName == null ? "avatar" : fileName.replaceAll("[\\s]", "_");
+        String key = "avatars/" + userId + "/" + safeName;
+        return presignUpload(key, contentType);
+    }
+
     public void deleteObject(String key) {
         DeleteObjectRequest deleteRequest = DeleteObjectRequest.builder()
                 .bucket(bucket)

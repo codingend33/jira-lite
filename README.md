@@ -5,10 +5,11 @@ Multi-tenant ticket system (portfolio project) for AU junior backend/full-stack 
 ## Tech Stack
 
 - Backend: Java 17, Spring Boot 3, Spring Security, JPA/Hibernate, Flyway, OpenAPI
-- Frontend: React + TypeScript, React Router, React Query, MUI
+- Backend Tests: JUnit 5, Mockito, Testcontainers (PostgreSQL), ArchUnit
+- Frontend: React + TypeScript, React Router, React Query, MUI, Vitest + RTL
 - AWS: Cognito, S3 (pre-signed), RDS Postgres, ECS Fargate, ALB, CloudWatch, ECR, CloudFront + S3
 - IaC: Terraform
-- CI/CD: GitHub Actions
+- CI/CD: GitHub Actions (Branch Protection, PR Gates, Auto-Deploy)
 
 ## Workflow
 
@@ -110,13 +111,29 @@ terraform init && terraform apply
 - Day 7: Tickets CRUD + pagination/filter/sort + status flow
 - Day 8: Comments + attachments (S3 presigned) + tests/docs
 - Day 9: Frontend pages + Cognito login + React Query data layer
+- Day 10: AWS Infrastructure (Terraform) + Production Deployment
+- Day 11: User Invitation Flow (Lambda Triggers + Email)
+- Day 12: Frontend Polish (Toasts, Error Boundary, Loading States)
+- Day 13: Engineering Excellence (72% Backend Coverage, 51% Frontend Coverage, CI/CD Hardening)
 
 ## Tests
 
 ```bash
 # Windows
 .\mvnw.cmd test
+.\mvnw.cmd verify  # Generates JaCoCo coverage report
 ```
+
+Frontend (Vitest):
+
+```bash
+cd frontend
+npm run test       # Run unit/component tests
+```
+
+**Current Coverage (Day 13):**
+- Backend: ~72% (Instruction), ~60% (Branch)
+- Frontend: ~51% (Statement)
 
 Optional Testcontainers (Docker required):
 

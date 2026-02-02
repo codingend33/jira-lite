@@ -4,11 +4,14 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import CreateOrganizationPage from "./pages/CreateOrganizationPage";
 import AcceptInvitationPage from "./pages/AcceptInvitationPage";
+import DashboardPage from "./pages/DashboardPage";
 import ProjectsPage from "./pages/ProjectsPage";
 import ProjectDetailPage from "./pages/ProjectDetailPage";
 import TicketsPage from "./pages/TicketsPage";
 import TicketDetailPage from "./pages/TicketDetailPage";
 import TicketFormPage from "./pages/TicketFormPage";
+import SettingsProfilePage from "./pages/SettingsProfilePage";
+import SettingsMembersPage from "./pages/SettingsMembersPage";
 import { useEffect } from "react";
 import { useNotify } from "./components/Notifications";
 
@@ -51,13 +54,16 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        <Route path="/" element={<Navigate to="/projects" replace />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
         <Route path="/tickets" element={<TicketsPage />} />
         <Route path="/tickets/new" element={<TicketFormPage mode="create" />} />
         <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />
         <Route path="/tickets/:ticketId/edit" element={<TicketFormPage mode="edit" />} />
+        <Route path="/settings/profile" element={<SettingsProfilePage />} />
+        <Route path="/settings/members" element={<SettingsMembersPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/projects" replace />} />
     </Routes>

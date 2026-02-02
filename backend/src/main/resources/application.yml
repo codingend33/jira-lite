@@ -34,6 +34,11 @@ aws:
   cognito:
     user-pool-id: ${COGNITO_USER_POOL_ID:ap-southeast-2_xxx}
 
+ai:
+  gemini:
+    api-key: ${AI_GEMINI_API_KEY:}
+    model: ${AI_GEMINI_MODEL:gemini-1.5-pro}
+
 # Note:
 # - Do not hardcode local DB settings here.
 # - Use profile "local" to run with local Postgres.

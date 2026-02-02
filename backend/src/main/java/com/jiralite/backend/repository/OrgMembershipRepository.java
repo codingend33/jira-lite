@@ -15,4 +15,6 @@ public interface OrgMembershipRepository extends JpaRepository<OrgMembershipEnti
     List<OrgMembershipEntity> findAllByIdUserIdOrderByCreatedAtDesc(UUID userId);
 
     Optional<OrgMembershipEntity> findByIdOrgIdAndIdUserId(UUID orgId, UUID userId);
+
+    long countByIdOrgId(UUID orgId);
 }

@@ -18,7 +18,7 @@ import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
 import PaginationControls from "../components/PaginationControls";
 import { useProjects } from "../query/projectQueries";
-import { useTickets } from "../query/ticketQueries";
+import { useTickets, useSearchTickets } from "../query/ticketQueries";
 import { useOrgMembers } from "../query/memberQueries";
 
 const STATUSES = ["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"];
@@ -28,6 +28,7 @@ export default function TicketsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const initialProjectId = searchParams.get("projectId") ?? "";
+  const keyword = searchParams.get("keyword") ?? "";
   const [filters, setFilters] = useState({
     status: "",
     priority: "",
@@ -39,7 +40,8 @@ export default function TicketsPage() {
 
   const projectsQuery = useProjects();
   const membersQuery = useOrgMembers();
-  const ticketsQuery = useTickets({
+  const searchQuery = useSearchTickets(keyword);
+  const listQuery = useTickets({
     status: filters.status || undefined,
     priority: filters.priority || undefined,
     projectId: filters.projectId || undefined,
@@ -47,6 +49,11 @@ export default function TicketsPage() {
     size: filters.size,
     sort: filters.sort
   });
+
+  const isSearching = keyword.trim().length > 0;
+  const tickets = isSearching
+    ? (searchQuery.data as any[] | undefined) ?? []
+    : (listQuery.data?.content ?? []);
 
   const projectOptions = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
   const memberLookup = useMemo(() => {
@@ -65,13 +72,13 @@ export default function TicketsPage() {
     }
   }, [filters, searchParams]);
 
-  if (ticketsQuery.isLoading) {
+  if (isSearching ? searchQuery.isLoading : listQuery.isLoading) {
     return <Loading />;
   }
 
   return (
     <Stack spacing={3}>
-      <ErrorBanner error={ticketsQuery.error ?? projectsQuery.error ?? membersQuery.error} />
+      <ErrorBanner error={(isSearching ? searchQuery.error : listQuery.error) ?? projectsQuery.error ?? membersQuery.error} />
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
           Tickets
@@ -154,7 +161,7 @@ export default function TicketsPage() {
       </Card>
 
       <Stack spacing={2}>
-        {ticketsQuery.data?.content.map((ticket) => (
+        {tickets.map((ticket) => (
           <Card key={ticket.id} variant="outlined" onClick={() => navigate(`/tickets/${ticket.id}`)}
           sx={{ cursor: "pointer" }}>
             <CardContent sx={{ display: "grid", gap: 1 }}>
@@ -180,25 +187,27 @@ export default function TicketsPage() {
         ))}
       </Stack>
 
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <PaginationControls
-          page={ticketsQuery.data?.page.number ?? 0}
-          totalPages={ticketsQuery.data?.page.totalPages ?? 1}
-          onChange={(next) => setFilters({ ...filters, page: next })}
-        />
-        <FormControl size="small">
-          <Select
-            value={filters.size}
-            onChange={(event) => setFilters({ ...filters, size: Number(event.target.value), page: 0 })}
-          >
-            {[5, 10, 20].map((size) => (
-              <MenuItem key={size} value={size}>
-                {size} / page
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      </Box>
+      {!isSearching && (
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <PaginationControls
+            page={listQuery.data?.page.number ?? 0}
+            totalPages={listQuery.data?.page.totalPages ?? 1}
+            onChange={(next) => setFilters({ ...filters, page: next })}
+          />
+          <FormControl size="small">
+            <Select
+              value={filters.size}
+              onChange={(event) => setFilters({ ...filters, size: Number(event.target.value), page: 0 })}
+            >
+              {[5, 10, 20].map((size) => (
+                <MenuItem key={size} value={size}>
+                  {size} / page
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+      )}
     </Stack>
   );
 }

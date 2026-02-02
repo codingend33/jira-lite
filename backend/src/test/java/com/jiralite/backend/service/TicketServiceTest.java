@@ -35,6 +35,8 @@ class TicketServiceTest {
         private ProjectRepository projectRepository;
         @Mock
         private OrgMembershipRepository membershipRepository;
+        @Mock
+        private NotificationService notificationService;
 
         private TicketService ticketService;
 
@@ -43,7 +45,8 @@ class TicketServiceTest {
 
         @BeforeEach
         void setUp() {
-                ticketService = new TicketService(ticketRepository, projectRepository, membershipRepository);
+                ticketService = new TicketService(ticketRepository, projectRepository, membershipRepository,
+                                notificationService);
                 TenantContextHolder.set(new TenantContext(ORG_ID.toString(), USER_ID.toString(),
                                 java.util.Set.of("user"), "access_token"));
         }

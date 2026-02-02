@@ -38,6 +38,11 @@ export async function listTickets(filters: TicketFilters): Promise<PagedResponse
   return apiRequest<PagedResponse<Ticket>>(`/tickets${buildQuery(filters)}`);
 }
 
+export async function searchTickets(keyword: string): Promise<Ticket[]> {
+  const params = new URLSearchParams({ keyword });
+  return apiRequest<Ticket[]>(`/tickets/search?${params.toString()}`);
+}
+
 export async function getTicket(ticketId: string): Promise<Ticket> {
   return apiRequest<Ticket>(`/tickets/${ticketId}`);
 }
