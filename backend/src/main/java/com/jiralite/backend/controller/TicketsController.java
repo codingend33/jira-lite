@@ -1,5 +1,6 @@
 package com.jiralite.backend.controller;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
@@ -52,6 +53,13 @@ public class TicketsController {
             @RequestParam(required = false) UUID projectId,
             @ParameterObject Pageable pageable) {
         return ResponseEntity.ok(ticketService.listTickets(status, priority, projectId, pageable));
+    }
+
+    @GetMapping("/search")
+    @PreAuthorize("hasAnyRole('ADMIN','MEMBER')")
+    @Operation(summary = "Search tickets by keyword in current org")
+    public ResponseEntity<List<TicketResponse>> searchTickets(@RequestParam String keyword) {
+        return ResponseEntity.ok(ticketService.search(keyword));
     }
 
     @GetMapping("/{ticketId}")

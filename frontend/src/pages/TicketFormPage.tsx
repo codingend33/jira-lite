@@ -19,6 +19,8 @@ import { useProjects } from "../query/projectQueries";
 import { useOrgMembers } from "../query/memberQueries";
 import { useCreateTicket, useTicket, useUpdateTicket } from "../query/ticketQueries";
 import { useNotify } from "../components/Notifications";
+import SparklesIcon from "@mui/icons-material/AutoAwesome";
+import { apiRequest } from "../api/client";
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 
@@ -36,7 +38,7 @@ export default function TicketFormPage({ mode }: Props) {
   const ticketQuery = useTicket(ticketId);
   const createTicket = useCreateTicket();
   const updateTicket = useUpdateTicket();
-  const { notifySuccess } = useNotify();
+  const { notifySuccess, notifyError } = useNotify();
 
   const [form, setForm] = useState({
     projectId: "",
@@ -45,6 +47,7 @@ export default function TicketFormPage({ mode }: Props) {
     priority: "MEDIUM",
     assigneeId: ""
   });
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
     if (mode === "edit" && ticketQuery.data) {
@@ -89,6 +92,26 @@ export default function TicketFormPage({ mode }: Props) {
     navigate(`/tickets/${ticketId}`);
   };
 
+  const handleAiPolish = async () => {
+    setAiLoading(true);
+    try {
+      const response = await apiRequest<{ result: string }>("/ai/polish", {
+        method: "POST",
+        body: JSON.stringify({ text: form.description || form.title })
+      });
+      if (response?.result) {
+        setForm((f) => ({ ...f, description: response.result }));
+        notifySuccess("Polished by AI");
+      } else {
+        notifyError("AI polish failed");
+      }
+    } catch {
+      notifyError("AI polish failed");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
   if (mode === "edit" && ticketQuery.isLoading) {
     return <Loading />;
   }
@@ -111,8 +134,9 @@ export default function TicketFormPage({ mode }: Props) {
       <Card variant="outlined">
         <CardContent sx={{ display: "grid", gap: 2 }}>
           <FormControl fullWidth>
-            <InputLabel>Project</InputLabel>
+            <InputLabel id="project-label">Project</InputLabel>
             <Select
+              labelId="project-label"
               label="Project"
               value={form.projectId}
               onChange={(event) => setForm({ ...form, projectId: event.target.value })}
@@ -137,10 +161,14 @@ export default function TicketFormPage({ mode }: Props) {
             multiline
             minRows={4}
           />
+          <Button startIcon={<SparklesIcon />} onClick={handleAiPolish} disabled={aiLoading}>
+            {aiLoading ? "Polishing..." : "✨ AI Polish"}
+          </Button>
           <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 2 }}>
             <FormControl fullWidth>
-              <InputLabel>Priority</InputLabel>
+              <InputLabel id="priority-label">Priority</InputLabel>
               <Select
+                labelId="priority-label"
                 label="Priority"
                 value={form.priority}
                 onChange={(event) => setForm({ ...form, priority: event.target.value })}
@@ -153,8 +181,9 @@ export default function TicketFormPage({ mode }: Props) {
               </Select>
             </FormControl>
             <FormControl fullWidth disabled={membersQuery.isLoading}>
-              <InputLabel>Assignee</InputLabel>
+              <InputLabel id="assignee-label">Assignee</InputLabel>
               <Select
+                labelId="assignee-label"
                 label="Assignee"
                 value={form.assigneeId}
                 onChange={(event) => setForm({ ...form, assigneeId: event.target.value })}

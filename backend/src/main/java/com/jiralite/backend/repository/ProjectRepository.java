@@ -14,4 +14,6 @@ public interface ProjectRepository extends JpaRepository<ProjectEntity, UUID> {
     Optional<ProjectEntity> findByIdAndOrgId(UUID id, UUID orgId);
 
     boolean existsByOrgIdAndProjectKey(UUID orgId, String projectKey);
+
+    long countByOrgId(UUID orgId);
 }

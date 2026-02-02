@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.jiralite.backend.audit.LogAudit;
 import com.jiralite.backend.dto.AttachmentResponse;
 import com.jiralite.backend.dto.ErrorCode;
 import com.jiralite.backend.dto.PresignDownloadResponse;
@@ -36,14 +37,17 @@ public class TicketAttachmentService {
     private final TicketRepository ticketRepository;
     private final TicketAttachmentRepository attachmentRepository;
     private final S3PresignService s3PresignService;
+    private final NotificationService notificationService;
 
     public TicketAttachmentService(
             TicketRepository ticketRepository,
             TicketAttachmentRepository attachmentRepository,
-            S3PresignService s3PresignService) {
+            S3PresignService s3PresignService,
+            NotificationService notificationService) {
         this.ticketRepository = ticketRepository;
         this.attachmentRepository = attachmentRepository;
         this.s3PresignService = s3PresignService;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -56,6 +60,7 @@ public class TicketAttachmentService {
     }
 
     @Transactional
+    @LogAudit(action = "ATTACHMENT_UPLOAD", entityType = "ATTACHMENT")
     public PresignUploadResponse presignUpload(UUID ticketId, PresignUploadRequest request) {
         TicketEntity ticket = getTicket(ticketId);
         OffsetDateTime now = OffsetDateTime.now();
@@ -78,14 +83,18 @@ public class TicketAttachmentService {
         TicketAttachmentEntity saved = attachmentRepository.save(attachment);
         S3PresignService.PresignResult presign = s3PresignService.presignUpload(s3Key, request.getContentType());
 
-        return new PresignUploadResponse(
+        PresignUploadResponse response = new PresignUploadResponse(
                 saved.getId(),
                 presign.url().toString(),
                 presign.headersOrEmpty(),
                 presign.expiresAt());
+        notifyUploader(attachment.getUploadedBy(), "ATTACHMENT_CREATED",
+                "Attachment upload started for ticket " + ticket.getTicketKey());
+        return response;
     }
 
     @Transactional
+    @LogAudit(action = "ATTACHMENT_CONFIRM", entityType = "ATTACHMENT")
     public AttachmentResponse confirmUpload(UUID ticketId, UUID attachmentId) {
         TicketAttachmentEntity attachment = getAttachment(attachmentId);
         if (!attachment.getTicketId().equals(ticketId)) {
@@ -116,6 +125,7 @@ public class TicketAttachmentService {
     }
 
     @Transactional
+    @LogAudit(action = "ATTACHMENT_DELETE", entityType = "ATTACHMENT")
     public void deleteAttachment(UUID ticketId, UUID attachmentId) {
         TicketAttachmentEntity attachment = getAttachment(attachmentId);
         if (!attachment.getTicketId().equals(ticketId)) {
@@ -134,6 +144,14 @@ public class TicketAttachmentService {
         }
 
         attachmentRepository.delete(attachment);
+        notifyUploader(attachment.getUploadedBy(), "ATTACHMENT_DELETED",
+                "Attachment deleted on ticket " + attachment.getTicketId());
+    }
+
+    private void notifyUploader(UUID userId, String type, String content) {
+        if (userId != null) {
+            notificationService.createNotification(userId, type, content);
+        }
     }
 
     private TicketEntity getTicket(UUID ticketId) {

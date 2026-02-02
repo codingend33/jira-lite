@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.jiralite.backend.audit.LogAudit;
 import com.jiralite.backend.dto.CreateMemberRequest;
 import com.jiralite.backend.dto.ErrorCode;
 import com.jiralite.backend.dto.MemberResponse;
@@ -33,10 +34,13 @@ public class OrgMemberService {
 
     private final OrgMembershipRepository membershipRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
-    public OrgMemberService(OrgMembershipRepository membershipRepository, UserRepository userRepository) {
+    public OrgMemberService(OrgMembershipRepository membershipRepository, UserRepository userRepository,
+            NotificationService notificationService) {
         this.membershipRepository = membershipRepository;
         this.userRepository = userRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -51,6 +55,7 @@ public class OrgMemberService {
     }
 
     @Transactional
+    @LogAudit(action = "MEMBER_CREATE", entityType = "ORG_MEMBER")
     public MemberResponse createMember(CreateMemberRequest request) {
         UUID orgId = getOrgId();
         UserEntity user = resolveUser(request);
@@ -69,10 +74,12 @@ public class OrgMemberService {
         membership.setUpdatedAt(OffsetDateTime.now());
 
         OrgMembershipEntity saved = membershipRepository.save(membership);
+        notifyUser(user.getId(), "ORG_MEMBER_ADDED", "You were added to the organization");
         return toResponse(saved, user);
     }
 
     @Transactional
+    @LogAudit(action = "MEMBER_UPDATE", entityType = "ORG_MEMBER")
     public MemberResponse updateMember(UUID userId, UpdateMemberRequest request) {
         if (request.getRole() == null && request.getStatus() == null) {
             throw new ApiException(ErrorCode.BAD_REQUEST, "role or status is required", HttpStatus.BAD_REQUEST.value());
@@ -90,13 +97,28 @@ public class OrgMemberService {
         UserEntity user = userRepository.findById(userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found", HttpStatus.NOT_FOUND.value()));
 
+        notifyUser(user.getId(), "ORG_MEMBER_UPDATED", "Your organization role/status changed");
         return toResponse(membership, user);
     }
 
     @Transactional
+    @LogAudit(action = "MEMBER_DELETE", entityType = "ORG_MEMBER")
     public void deleteMember(UUID userId) {
         OrgMembershipEntity membership = getMembership(userId);
+        ensureAdmin();
         membershipRepository.delete(membership);
+        notifyUser(userId, "ORG_REMOVED", "You have been removed from the organization");
+    }
+
+    private void ensureAdmin() {
+        TenantContext context = TenantContextHolder.getRequired();
+        if (context.roles() == null || context.roles().stream().noneMatch(r -> r.equals("ADMIN") || r.equals("ROLE_ADMIN"))) {
+            throw new ApiException(ErrorCode.FORBIDDEN, "Admin only", HttpStatus.FORBIDDEN.value());
+        }
+    }
+
+    private void notifyUser(UUID userId, String type, String content) {
+        notificationService.createNotification(userId, type, content);
     }
 
     private UUID getOrgId() {
@@ -109,6 +131,7 @@ public class OrgMemberService {
 
     private OrgMembershipEntity getMembership(UUID userId) {
         UUID orgId = getOrgId();
+        // Ensure caller is admin (controller already @PreAuthorize, double-check optional)
         return membershipRepository.findByIdOrgIdAndIdUserId(orgId, userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Membership not found", HttpStatus.NOT_FOUND.value()));
     }

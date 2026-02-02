@@ -33,6 +33,12 @@ public class UserEntity {
     @Column(name = "updated_at", nullable = false)
     private OffsetDateTime updatedAt;
 
+    @Column(name = "avatar_s3_key")
+    private String avatarS3Key;
+
+    @Column(name = "last_login_at")
+    private OffsetDateTime lastLoginAt;
+
     public UUID getId() {
         return id;
     }
@@ -79,5 +85,21 @@ public class UserEntity {
 
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public String getAvatarS3Key() {
+        return avatarS3Key;
+    }
+
+    public void setAvatarS3Key(String avatarS3Key) {
+        this.avatarS3Key = avatarS3Key;
+    }
+
+    public OffsetDateTime getLastLoginAt() {
+        return lastLoginAt;
+    }
+
+    public void setLastLoginAt(OffsetDateTime lastLoginAt) {
+        this.lastLoginAt = lastLoginAt;
     }
 }

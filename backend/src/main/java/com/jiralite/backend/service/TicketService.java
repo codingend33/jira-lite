@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.jiralite.backend.audit.LogAudit;
 import com.jiralite.backend.dto.CreateTicketRequest;
 import com.jiralite.backend.dto.ErrorCode;
 import com.jiralite.backend.dto.PageMeta;
@@ -27,6 +28,7 @@ import com.jiralite.backend.exception.ApiException;
 import com.jiralite.backend.repository.OrgMembershipRepository;
 import com.jiralite.backend.repository.ProjectRepository;
 import com.jiralite.backend.repository.TicketRepository;
+import com.jiralite.backend.service.NotificationService;
 import com.jiralite.backend.security.tenant.TenantContext;
 import com.jiralite.backend.security.tenant.TenantContextHolder;
 
@@ -42,14 +44,17 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final ProjectRepository projectRepository;
     private final OrgMembershipRepository membershipRepository;
+    private final NotificationService notificationService;
 
     public TicketService(
             TicketRepository ticketRepository,
             ProjectRepository projectRepository,
-            OrgMembershipRepository membershipRepository) {
+            OrgMembershipRepository membershipRepository,
+            NotificationService notificationService) {
         this.ticketRepository = ticketRepository;
         this.projectRepository = projectRepository;
         this.membershipRepository = membershipRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
@@ -88,7 +93,21 @@ public class TicketService {
         return toResponse(findTicket(ticketId));
     }
 
+    @Transactional(readOnly = true)
+    public List<TicketResponse> search(String keyword) {
+        UUID orgId = getOrgId();
+        String term = keyword == null ? "" : keyword.trim();
+        if (term.isEmpty()) {
+            return List.of();
+        }
+        return ticketRepository.searchTickets(orgId, term)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
     @Transactional
+    @LogAudit(action = "TICKET_CREATE", entityType = "TICKET")
     public TicketResponse createTicket(CreateTicketRequest request) {
         UUID orgId = getOrgId();
         ProjectEntity project = projectRepository.findByIdAndOrgId(request.getProjectId(), orgId)
@@ -117,10 +136,13 @@ public class TicketService {
         ticket.setUpdatedAt(now);
 
         TicketEntity saved = ticketRepository.save(ticket);
+        notifyAssignee(saved.getAssigneeId(), "TICKET_ASSIGNED",
+                "You were assigned ticket " + saved.getTicketKey());
         return toResponse(saved);
     }
 
     @Transactional
+    @LogAudit(action = "TICKET_UPDATE", entityType = "TICKET")
     public TicketResponse updateTicket(UUID ticketId, UpdateTicketRequest request) {
         if ((request.getTitle() == null || request.getTitle().isBlank())
                 && request.getDescription() == null
@@ -145,10 +167,13 @@ public class TicketService {
         }
         ticket.setUpdatedAt(OffsetDateTime.now());
 
+        notifyAssignee(ticket.getAssigneeId(), "TICKET_UPDATED",
+                "Ticket " + ticket.getTicketKey() + " was updated");
         return toResponse(ticket);
     }
 
     @Transactional
+    @LogAudit(action = "TICKET_TRANSITION", entityType = "TICKET")
     public TicketResponse transition(UUID ticketId, TransitionTicketRequest request) {
         TicketEntity ticket = findTicket(ticketId);
         String nextStatus = normalizeStatus(request.getStatus());
@@ -157,7 +182,23 @@ public class TicketService {
         }
         ticket.setStatus(nextStatus);
         ticket.setUpdatedAt(OffsetDateTime.now());
+        notifyAssignee(ticket.getAssigneeId(), "TICKET_STATUS",
+                "Ticket " + ticket.getTicketKey() + " moved to " + nextStatus);
         return toResponse(ticket);
+    }
+
+    @Transactional
+    @LogAudit(action = "TICKET_DELETE", entityType = "TICKET")
+    public void deleteTicket(UUID ticketId) {
+        TicketEntity ticket = findTicket(ticketId);
+        ticketRepository.delete(ticket);
+    }
+
+    private void notifyAssignee(UUID assigneeId, String type, String content) {
+        if (assigneeId == null) {
+            return;
+        }
+        notificationService.createNotification(assigneeId, type, content);
     }
 
     private TicketEntity findTicket(UUID ticketId) {

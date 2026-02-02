@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createTicket, getTicket, listTickets, transitionTicket, updateTicket } from "../api/tickets";
+import { createTicket, getTicket, listTickets, searchTickets, transitionTicket, updateTicket } from "../api/tickets";
 import { TicketFilters } from "../api/tickets";
 
 export const ticketKeys = {
   all: ["tickets"] as const,
   list: (filters: TicketFilters) => ["tickets", "list", filters] as const,
-  detail: (ticketId: string) => ["tickets", "detail", ticketId] as const
+  detail: (ticketId: string) => ["tickets", "detail", ticketId] as const,
+  search: (keyword: string) => ["tickets", "search", keyword] as const
 };
 
 export function useTickets(filters: TicketFilters) {
@@ -20,6 +21,14 @@ export function useTicket(ticketId: string) {
     queryKey: ticketKeys.detail(ticketId),
     queryFn: () => getTicket(ticketId),
     enabled: Boolean(ticketId)
+  });
+}
+
+export function useSearchTickets(keyword: string) {
+  return useQuery({
+    queryKey: ticketKeys.search(keyword),
+    queryFn: () => searchTickets(keyword),
+    enabled: keyword.trim().length > 0
   });
 }
 

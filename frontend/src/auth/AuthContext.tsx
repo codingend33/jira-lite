@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useMemo, useState } from "react";
 import { buildAuthorizeUrl, buildLogoutUrl, decodeJwt, exchangeCodeForTokens } from "./auth";
 import { AuthTokens, clearTokens, loadTokens, saveTokens } from "./storage";
+import { syncLogin } from "../api/profile";
 
 export type AuthState = {
-  tokens: AuthTokens | null;
-  profile: ReturnType<typeof decodeJwt> | null;
+  tokens?: AuthTokens | null;
+  profile?: ReturnType<typeof decodeJwt> | null;
 };
 
 export type AuthContextValue = {
@@ -32,6 +33,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setState({
       tokens,
       profile: decodeJwt(tokens.idToken)
+    });
+    // fire and forget; no need to block UI
+    syncLogin().catch(() => {
+      /* ignore */
     });
   };
 

@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.jiralite.backend.audit.LogAudit;
 import com.jiralite.backend.dto.CreateProjectRequest;
 import com.jiralite.backend.dto.ErrorCode;
 import com.jiralite.backend.dto.ProjectResponse;
@@ -48,6 +49,7 @@ public class ProjectService {
     }
 
     @Transactional
+    @LogAudit(action = "PROJECT_CREATE", entityType = "PROJECT")
     public ProjectResponse createProject(CreateProjectRequest request) {
         UUID orgId = getOrgId();
         if (request.getKey() == null || request.getKey().isBlank()) {
@@ -76,6 +78,7 @@ public class ProjectService {
     }
 
     @Transactional
+    @LogAudit(action = "PROJECT_UPDATE", entityType = "PROJECT")
     public ProjectResponse updateProject(UUID projectId, UpdateProjectRequest request) {
         if ((request.getName() == null || request.getName().isBlank())
                 && (request.getDescription() == null || request.getDescription().isBlank())) {
@@ -96,6 +99,7 @@ public class ProjectService {
     }
 
     @Transactional
+    @LogAudit(action = "PROJECT_ARCHIVE", entityType = "PROJECT")
     public ProjectResponse archiveProject(UUID projectId) {
         ProjectEntity project = findProject(projectId);
         project.setStatus(STATUS_ARCHIVED);
@@ -104,6 +108,7 @@ public class ProjectService {
     }
 
     @Transactional
+    @LogAudit(action = "PROJECT_UNARCHIVE", entityType = "PROJECT")
     public ProjectResponse unarchiveProject(UUID projectId) {
         ProjectEntity project = findProject(projectId);
         project.setStatus(STATUS_ACTIVE);
@@ -112,6 +117,7 @@ public class ProjectService {
     }
 
     @Transactional
+    @LogAudit(action = "PROJECT_DELETE", entityType = "PROJECT")
     public void deleteProject(UUID projectId) {
         ProjectEntity project = findProject(projectId);
         projectRepository.delete(project);
