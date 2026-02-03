@@ -3,7 +3,6 @@ package com.jiralite.backend.service;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
@@ -20,6 +19,7 @@ import com.jiralite.backend.dto.TransitionTicketRequest;
 import com.jiralite.backend.entity.ProjectEntity;
 import com.jiralite.backend.entity.TicketEntity;
 import com.jiralite.backend.exception.ApiException;
+import com.jiralite.backend.repository.AuditLogRepository;
 import com.jiralite.backend.repository.OrgMembershipRepository;
 import com.jiralite.backend.repository.ProjectRepository;
 import com.jiralite.backend.repository.TicketRepository;
@@ -32,24 +32,26 @@ class TicketServiceTest {
         @Mock
         private TicketRepository ticketRepository;
         @Mock
-        private ProjectRepository projectRepository;
-        @Mock
-        private OrgMembershipRepository membershipRepository;
-        @Mock
-        private NotificationService notificationService;
+    private ProjectRepository projectRepository;
+    @Mock
+    private OrgMembershipRepository membershipRepository;
+    @Mock
+    private NotificationService notificationService;
+    @Mock
+    private AuditLogRepository auditLogRepository;
 
-        private TicketService ticketService;
+    private TicketService ticketService;
 
         private final UUID ORG_ID = UUID.randomUUID();
-        private final UUID USER_ID = UUID.randomUUID();
+    private final UUID USER_ID = UUID.randomUUID();
 
-        @BeforeEach
-        void setUp() {
-                ticketService = new TicketService(ticketRepository, projectRepository, membershipRepository,
-                                notificationService);
-                TenantContextHolder.set(new TenantContext(ORG_ID.toString(), USER_ID.toString(),
-                                java.util.Set.of("user"), "access_token"));
-        }
+    @BeforeEach
+    void setUp() {
+        ticketService = new TicketService(ticketRepository, projectRepository, membershipRepository,
+                        notificationService, auditLogRepository);
+        TenantContextHolder.set(new TenantContext(ORG_ID.toString(), USER_ID.toString(),
+                        java.util.Set.of("user"), "access_token"));
+    }
 
         @Test
         void createTicket_InvalidPriority_ThrowsException() {

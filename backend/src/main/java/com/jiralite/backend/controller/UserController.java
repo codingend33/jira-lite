@@ -14,6 +14,7 @@ import com.jiralite.backend.dto.AvatarPresignResponse;
 import com.jiralite.backend.dto.UpdateProfileRequest;
 import com.jiralite.backend.dto.UserProfileResponse;
 import com.jiralite.backend.service.UserService;
+import com.jiralite.backend.api.ProfileAvatarUrlResponse;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -57,5 +58,13 @@ public class UserController {
             @RequestParam String fileName,
             @RequestParam(defaultValue = "image/png") String contentType) {
         return ResponseEntity.ok(userService.presignAvatarUpload(fileName, contentType));
+    }
+
+    @GetMapping("/avatar-url")
+    @Operation(summary = "Get presigned URL for avatar download")
+    public ResponseEntity<ProfileAvatarUrlResponse> avatarUrl() {
+        return userService.presignAvatarDownload()
+                .map(url -> ResponseEntity.ok(new ProfileAvatarUrlResponse(url)))
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 }

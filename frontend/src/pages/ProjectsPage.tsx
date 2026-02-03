@@ -38,6 +38,7 @@ export default function ProjectsPage() {
   const [open, setOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [form, setForm] = useState({ key: "", name: "", description: "" });
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; key: string } | null>(null);
 
   const handleCreate = async () => {
     await createProject.mutateAsync({
@@ -49,13 +50,30 @@ export default function ProjectsPage() {
     setOpen(false);
   };
 
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
+    try {
+      await deleteProject.mutateAsync(confirmDelete.id);
+      setConfirmDelete(null);
+    } catch {
+      // ErrorBanner will show the error
+    }
+  };
+
   if (projectsQuery.isLoading) {
     return <Loading />;
   }
 
+  const mutationError =
+    projectsQuery.error ||
+    createProject.error ||
+    archiveProject.error ||
+    unarchiveProject.error ||
+    deleteProject.error;
+
   return (
     <Stack spacing={3}>
-      <ErrorBanner error={projectsQuery.error} />
+      <ErrorBanner error={mutationError} />
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
           Projects
@@ -121,7 +139,7 @@ export default function ProjectsPage() {
                   color="error"
                   onClick={(event) => {
                     event.stopPropagation();
-                    deleteProject.mutate(project.id);
+                    setConfirmDelete({ id: project.id, key: project.key });
                   }}
                 >
                   Delete
@@ -162,6 +180,21 @@ export default function ProjectsPage() {
             disabled={!form.key || !form.name || createProject.isPending}
           >
             Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)}>
+        <DialogTitle>Delete project?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            {confirmDelete ? `Project ${confirmDelete.key} will be permanently deleted.` : ""}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={handleDelete} disabled={deleteProject.isPending}>
+            Delete
           </Button>
         </DialogActions>
       </Dialog>

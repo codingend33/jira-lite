@@ -62,7 +62,7 @@ export async function createTicket(payload: {
 
 export async function updateTicket(
   ticketId: string,
-  payload: { title?: string; description?: string; priority?: string; assigneeId?: string | null }
+  payload: { title?: string; description?: string; priority?: string; assigneeId?: string | null; clearAssignee?: boolean }
 ): Promise<Ticket> {
   return apiRequest<Ticket>(`/tickets/${ticketId}`, {
     method: "PATCH",

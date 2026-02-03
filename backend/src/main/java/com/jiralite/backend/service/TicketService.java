@@ -29,6 +29,8 @@ import com.jiralite.backend.repository.OrgMembershipRepository;
 import com.jiralite.backend.repository.ProjectRepository;
 import com.jiralite.backend.repository.TicketRepository;
 import com.jiralite.backend.service.NotificationService;
+import com.jiralite.backend.repository.AuditLogRepository;
+import com.jiralite.backend.entity.AuditLogEntity;
 import com.jiralite.backend.security.tenant.TenantContext;
 import com.jiralite.backend.security.tenant.TenantContextHolder;
 
@@ -45,16 +47,19 @@ public class TicketService {
     private final ProjectRepository projectRepository;
     private final OrgMembershipRepository membershipRepository;
     private final NotificationService notificationService;
+    private final AuditLogRepository auditLogRepository;
 
     public TicketService(
             TicketRepository ticketRepository,
             ProjectRepository projectRepository,
             OrgMembershipRepository membershipRepository,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            AuditLogRepository auditLogRepository) {
         this.ticketRepository = ticketRepository;
         this.projectRepository = projectRepository;
         this.membershipRepository = membershipRepository;
         this.notificationService = notificationService;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Transactional(readOnly = true)
@@ -138,6 +143,9 @@ public class TicketService {
         TicketEntity saved = ticketRepository.save(ticket);
         notifyAssignee(saved.getAssigneeId(), "TICKET_ASSIGNED",
                 "You were assigned ticket " + saved.getTicketKey());
+        writeAudit("TICKET_CREATE", "TICKET", saved.getTicketKey(),
+                "Ticket %s created with priority %s, assignee %s"
+                        .formatted(saved.getTicketKey(), priority, formatAssignee(saved.getAssigneeId())));
         return toResponse(saved);
     }
 
@@ -147,28 +155,64 @@ public class TicketService {
         if ((request.getTitle() == null || request.getTitle().isBlank())
                 && request.getDescription() == null
                 && (request.getPriority() == null || request.getPriority().isBlank())
-                && request.getAssigneeId() == null) {
+                && request.getAssigneeId() == null
+                && (request.getClearAssignee() == null || !request.getClearAssignee())) {
             throw new ApiException(ErrorCode.BAD_REQUEST, "No fields to update", HttpStatus.BAD_REQUEST.value());
         }
 
         TicketEntity ticket = findTicket(ticketId);
+        StringBuilder changeSummary = new StringBuilder();
+        String oldTitle = ticket.getTitle();
+        String oldDescription = ticket.getDescription();
+        String oldPriority = ticket.getPriority();
+        UUID oldAssignee = ticket.getAssigneeId();
+
         if (request.getTitle() != null && !request.getTitle().isBlank()) {
+            if (!request.getTitle().equals(ticket.getTitle())) {
+                changeSummary.append("title:'").append(trimForAudit(oldTitle)).append("' -> '")
+                        .append(trimForAudit(request.getTitle())).append("'; ");
+            }
             ticket.setTitle(request.getTitle());
         }
         if (request.getDescription() != null) {
+            if (!request.getDescription().equals(ticket.getDescription())) {
+                changeSummary.append("description changed; ");
+            }
             ticket.setDescription(request.getDescription());
         }
         if (request.getPriority() != null && !request.getPriority().isBlank()) {
-            ticket.setPriority(normalizePriority(request.getPriority()));
+            String normalized = normalizePriority(request.getPriority());
+            if (!normalized.equals(ticket.getPriority())) {
+                changeSummary.append("priority:").append(ticket.getPriority()).append(" -> ").append(normalized)
+                        .append("; ");
+            }
+            ticket.setPriority(normalized);
         }
         if (request.getAssigneeId() != null) {
             validateAssignee(ticket.getOrgId(), request.getAssigneeId());
+            if (!request.getAssigneeId().equals(ticket.getAssigneeId())) {
+                changeSummary.append("assignee:")
+                        .append(formatAssignee(oldAssignee))
+                        .append(" -> ")
+                        .append(formatAssignee(request.getAssigneeId()))
+                        .append("; ");
+            }
             ticket.setAssigneeId(request.getAssigneeId());
+        } else if (Boolean.TRUE.equals(request.getClearAssignee())) {
+            if (ticket.getAssigneeId() != null) {
+                changeSummary.append("assignee:")
+                        .append(formatAssignee(ticket.getAssigneeId()))
+                        .append(" -> Unassigned; ");
+            }
+            ticket.setAssigneeId(null);
         }
         ticket.setUpdatedAt(OffsetDateTime.now());
 
+        String changeText = changeSummary.toString().isBlank() ? "updated" : changeSummary.toString().trim();
+        String auditDetails = "Ticket %s %s".formatted(ticket.getTicketKey(), changeText);
         notifyAssignee(ticket.getAssigneeId(), "TICKET_UPDATED",
-                "Ticket " + ticket.getTicketKey() + " was updated");
+                "Ticket " + ticket.getTicketKey() + " updated: " + changeText);
+        writeAudit("TICKET_UPDATE", "TICKET", ticket.getTicketKey(), auditDetails);
         return toResponse(ticket);
     }
 
@@ -177,13 +221,16 @@ public class TicketService {
     public TicketResponse transition(UUID ticketId, TransitionTicketRequest request) {
         TicketEntity ticket = findTicket(ticketId);
         String nextStatus = normalizeStatus(request.getStatus());
+        String currentStatus = ticket.getStatus();
         if (!isValidTransition(ticket.getStatus(), nextStatus)) {
             throw new ApiException(ErrorCode.BAD_REQUEST, "Invalid status transition", HttpStatus.BAD_REQUEST.value());
         }
         ticket.setStatus(nextStatus);
         ticket.setUpdatedAt(OffsetDateTime.now());
         notifyAssignee(ticket.getAssigneeId(), "TICKET_STATUS",
-                "Ticket " + ticket.getTicketKey() + " moved to " + nextStatus);
+                "Ticket " + ticket.getTicketKey() + " moved " + currentStatus + " -> " + nextStatus);
+        writeAudit("TICKET_TRANSITION", "TICKET", ticket.getTicketKey(),
+                "Ticket %s status: %s -> %s".formatted(ticket.getTicketKey(), currentStatus, nextStatus));
         return toResponse(ticket);
     }
 
@@ -192,6 +239,8 @@ public class TicketService {
     public void deleteTicket(UUID ticketId) {
         TicketEntity ticket = findTicket(ticketId);
         ticketRepository.delete(ticket);
+        writeAudit("TICKET_DELETE", "TICKET", ticket.getTicketKey(),
+                "Ticket %s deleted".formatted(ticket.getTicketKey()));
     }
 
     private void notifyAssignee(UUID assigneeId, String type, String content) {
@@ -232,6 +281,34 @@ public class TicketService {
         if (membership.getStatus() != null && "DISABLED".equalsIgnoreCase(membership.getStatus())) {
             throw new ApiException(ErrorCode.BAD_REQUEST, "Assignee is disabled", HttpStatus.BAD_REQUEST.value());
         }
+    }
+
+    private void writeAudit(String action, String entityType, String entityId, String details) {
+        TenantContext ctx = TenantContextHolder.getRequired();
+        try {
+            AuditLogEntity log = new AuditLogEntity();
+            log.setId(UUID.randomUUID());
+            log.setTenantId(UUID.fromString(ctx.orgId()));
+            log.setActorUserId(parseUuidOrNull(ctx.userId()));
+            log.setAction(action);
+            log.setEntityType(entityType);
+            log.setEntityId(entityId);
+            log.setDetails(details);
+            log.setCreatedAt(OffsetDateTime.now());
+            auditLogRepository.save(log);
+        } catch (Exception ignored) {
+        }
+    }
+
+    private String formatAssignee(UUID id) {
+        return id == null ? "Unassigned" : id.toString();
+    }
+
+    private String trimForAudit(String text) {
+        if (text == null) {
+            return "";
+        }
+        return text.length() > 50 ? text.substring(0, 47) + "..." : text;
     }
 
     private String normalizeStatus(String status) {

@@ -1,6 +1,7 @@
 package com.jiralite.backend.service;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import com.jiralite.backend.exception.ApiException;
 import com.jiralite.backend.repository.UserRepository;
 import com.jiralite.backend.security.tenant.TenantContext;
 import com.jiralite.backend.security.tenant.TenantContextHolder;
+import com.jiralite.backend.service.S3PresignService;
 
 @Service
 public class UserService {
@@ -74,6 +76,14 @@ public class UserService {
         var presign = s3PresignService.presignAvatar(userId, fileName, contentType);
         return new AvatarPresignResponse(presign.url().toString(), presign.headersOrEmpty(), presign.expiresAt(),
                 buildKey(userId, fileName));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<String> presignAvatarDownload() {
+        return userRepository.findById(currentUserId())
+                .map(UserEntity::getAvatarS3Key)
+                .filter(key -> key != null && !key.isBlank())
+                .map(key -> s3PresignService.presignDownload(key, null, null).url().toString());
     }
 
     private String buildKey(UUID userId, String fileName) {

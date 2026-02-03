@@ -16,9 +16,11 @@ import com.jiralite.backend.dto.ErrorCode;
 import com.jiralite.backend.dto.PresignDownloadResponse;
 import com.jiralite.backend.dto.PresignUploadRequest;
 import com.jiralite.backend.dto.PresignUploadResponse;
+import com.jiralite.backend.entity.AuditLogEntity;
 import com.jiralite.backend.entity.TicketAttachmentEntity;
 import com.jiralite.backend.entity.TicketEntity;
 import com.jiralite.backend.exception.ApiException;
+import com.jiralite.backend.repository.AuditLogRepository;
 import com.jiralite.backend.repository.TicketAttachmentRepository;
 import com.jiralite.backend.repository.TicketRepository;
 import com.jiralite.backend.security.tenant.TenantContext;
@@ -38,16 +40,19 @@ public class TicketAttachmentService {
     private final TicketAttachmentRepository attachmentRepository;
     private final S3PresignService s3PresignService;
     private final NotificationService notificationService;
+    private final AuditLogRepository auditLogRepository;
 
     public TicketAttachmentService(
             TicketRepository ticketRepository,
             TicketAttachmentRepository attachmentRepository,
             S3PresignService s3PresignService,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            AuditLogRepository auditLogRepository) {
         this.ticketRepository = ticketRepository;
         this.attachmentRepository = attachmentRepository;
         this.s3PresignService = s3PresignService;
         this.notificationService = notificationService;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Transactional(readOnly = true)
@@ -90,6 +95,8 @@ public class TicketAttachmentService {
                 presign.expiresAt());
         notifyUploader(attachment.getUploadedBy(), "ATTACHMENT_CREATED",
                 "Attachment upload started for ticket " + ticket.getTicketKey());
+        writeAudit("ATTACHMENT_CREATE", ticket, attachment.getId().toString(),
+                "Attachment created for ticket %s by %s".formatted(ticket.getTicketKey(), formatUser(attachment.getUploadedBy())));
         return response;
     }
 
@@ -102,6 +109,9 @@ public class TicketAttachmentService {
         }
         attachment.setUploadStatus(STATUS_UPLOADED);
         attachment.setUpdatedAt(OffsetDateTime.now());
+        writeAudit("ATTACHMENT_UPLOAD_CONFIRMED", getTicket(ticketId),
+                attachment.getId().toString(),
+                "Attachment uploaded for ticket " + getTicket(ticketId).getTicketKey());
         return toResponse(attachment);
     }
 
@@ -145,7 +155,10 @@ public class TicketAttachmentService {
 
         attachmentRepository.delete(attachment);
         notifyUploader(attachment.getUploadedBy(), "ATTACHMENT_DELETED",
-                "Attachment deleted on ticket " + attachment.getTicketId());
+                "Attachment deleted on ticket " + getTicket(ticketId).getTicketKey());
+        writeAudit("ATTACHMENT_DELETE", getTicket(ticketId),
+                attachment.getId().toString(),
+                "Attachment deleted on ticket " + getTicket(ticketId).getTicketKey());
     }
 
     private void notifyUploader(UUID userId, String type, String content) {
@@ -195,6 +208,27 @@ public class TicketAttachmentService {
     private String buildS3Key(UUID orgId, UUID ticketId, UUID attachmentId, String fileName) {
         String safeName = fileName == null ? "file" : fileName.replaceAll("\\s+", "_");
         return "org/" + orgId + "/tickets/" + ticketId + "/" + attachmentId + "-" + safeName;
+    }
+
+    private String formatUser(UUID id) {
+        return id == null ? "system" : id.toString();
+    }
+
+    private void writeAudit(String action, TicketEntity ticket, String entityId, String details) {
+        try {
+            TenantContext ctx = TenantContextHolder.getRequired();
+            AuditLogEntity log = new AuditLogEntity();
+            log.setId(UUID.randomUUID());
+            log.setTenantId(UUID.fromString(ctx.orgId()));
+            log.setActorUserId(parseUuidOrNull(ctx.userId()));
+            log.setAction(action);
+            log.setEntityType("ATTACHMENT");
+            log.setEntityId(entityId);
+            log.setDetails("Ticket " + ticket.getTicketKey() + ": " + details);
+            log.setCreatedAt(OffsetDateTime.now());
+            auditLogRepository.save(log);
+        } catch (Exception ignored) {
+        }
     }
 
     private AttachmentResponse toResponse(TicketAttachmentEntity attachment) {

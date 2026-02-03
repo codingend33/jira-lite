@@ -6,9 +6,11 @@ import { useThemeContext } from "../theme/ThemeContext";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "../api/client";
+import { getProfile } from "../api/profile";
+import { useOrgMembers } from "../query/memberQueries";
+import { listNotifications, markNotificationRead, Notification, connectNotificationStream } from "../api/notifications";
 
 export default function Layout() {
   const { logout, state } = useAuth();
@@ -17,21 +19,101 @@ export default function Layout() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
+  const membersQuery = useOrgMembers();
 
   const notificationsQuery = useQuery({
     queryKey: ["notifications"],
-    queryFn: () => apiRequest<any[]>("/notifications", { method: "GET" })
+    queryFn: () => listNotifications({ page: 0, size: 20 }),
+    staleTime: 0,
+    gcTime: 0,
+    // 保底 15s 轮询一次
+    refetchInterval: 15000
   });
 
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => getProfile()
+  });
+
+  // SSE: start stream once access token存在
+  useEffect(() => {
+    if (!state.tokens?.accessToken) return;
+    let cancelled = false;
+    const start = async () => {
+      try {
+        await connectNotificationStream(state.tokens!.accessToken, (ev) => {
+          if (cancelled) return;
+          if (ev.type === "notification") {
+            queryClient.invalidateQueries({ queryKey: ["notifications"] });
+          }
+        });
+      } catch {
+        // 连接失败则稍后重试
+        setTimeout(() => {
+          if (!cancelled) start();
+        }, 5000);
+      }
+    };
+    start();
+    return () => {
+      cancelled = true;
+    };
+  }, [state.tokens?.accessToken, state.tokens, queryClient]);
+
+  const memberMap = useMemo(() => {
+    const map = new Map<string, string>();
+    membersQuery.data?.forEach((m) => {
+      map.set(m.userId, m.displayName || m.email || m.userId);
+    });
+    return map;
+  }, [membersQuery.data]);
+
+  const humanizeText = useCallback(
+    (text: string) => {
+      let result = text;
+      memberMap.forEach((name, id) => {
+        result = result.split(id).join(name);
+      });
+      return result;
+    },
+    [memberMap]
+  );
+
+  const summarize = (text: string, max = 90) => {
+    if (text.length <= max) return text;
+    return `${text.slice(0, max)}…`;
+  };
+
+  const notifications: Notification[] = useMemo(() => {
+    const data = notificationsQuery.data as any;
+    if (Array.isArray(data)) return data;
+    if (data?.content) return data.content;
+    return [];
+  }, [notificationsQuery.data]);
+
   const unread = useMemo(
-    () => (notificationsQuery.data ?? []).filter((n) => !n.isRead).length,
-    [notificationsQuery.data]
+    () => notifications.filter((n: Notification) => !n.read && !n.isRead).length,
+    [notifications]
   );
 
   const markReadMutation = useMutation({
-    mutationFn: (id: string) => apiRequest(`/notifications/${id}/read`, { method: "PATCH" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] })
+    mutationFn: (id: string) => markNotificationRead(id),
+    onSuccess: (_, id) => {
+      queryClient.setQueryData(["notifications"], (prev: any) => {
+        if (!prev) return prev;
+        const list = Array.isArray(prev) ? prev : prev.content;
+        if (!list) return prev;
+        const nextList = list.map((n: Notification) => (n.id === id ? { ...n, read: true, isRead: true } : n));
+        return Array.isArray(prev) ? nextList : { ...prev, content: nextList };
+      });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    }
   });
+
+  const menuItems = useMemo(() => notifications.slice(0, 10), [notifications]);
+  const badgeCount = unread;
+
+  const displayName = profileQuery.data?.displayName || state.profile?.email || state.profile?.sub || "";
 
   return (
     <Box minHeight="100vh">
@@ -82,7 +164,7 @@ export default function Layout() {
             onClick={(e) => setAnchorEl(e.currentTarget)}
             size="small"
           >
-            <Badge color="error" badgeContent={unread || null}>
+            <Badge color="error" badgeContent={badgeCount || null}>
               <NotificationsNoneIcon />
             </Badge>
           </IconButton>
@@ -92,28 +174,48 @@ export default function Layout() {
             anchorEl={anchorEl}
             slotProps={{ paper: { sx: { width: 320 } } }}
           >
-            {(notificationsQuery.data ?? []).map((n) => (
-              <MenuItem
-                key={n.id}
-                dense
-                onClick={() => markReadMutation.mutate(n.id)}
-                disabled={markReadMutation.isPending}
-              >
-                <ListItemText
-                  primary={n.content}
-                  secondary={new Date(n.createdAt).toLocaleString()}
-                  primaryTypographyProps={{ fontWeight: n.isRead ? 400 : 700 }}
-                />
-              </MenuItem>
-            ))}
-            {(notificationsQuery.data?.length ?? 0) === 0 && (
+            {menuItems.map((n: Notification) => {
+              const content = n.content ?? (n as any).message ?? "";
+              const full = humanizeText(content);
+              const short = summarize(full);
+              return (
+                <MenuItem
+                  key={n.id}
+                  dense
+                  onClick={() => markReadMutation.mutate(n.id)}
+                  disabled={markReadMutation.isPending}
+                >
+                  <ListItemText
+                    primary={short}
+                    secondary={new Date(n.createdAt).toLocaleString()}
+                    primaryTypographyProps={{
+                      fontWeight: n.read || n.isRead ? 400 : 700,
+                      noWrap: true,
+                      title: full
+                    }}
+                  />
+                </MenuItem>
+              );
+            })}
+            {menuItems.length === 0 && (
               <MenuItem dense disabled>
                 <ListItemText primary="No notifications" />
               </MenuItem>
             )}
+            {notifications.length > 0 && (
+              <MenuItem
+                dense
+                onClick={() => {
+                  setAnchorEl(null);
+                  navigate("/notifications");
+                }}
+              >
+                <ListItemText primary="View all" />
+              </MenuItem>
+            )}
           </Menu>
           <Typography variant="body2" sx={{ opacity: 0.7 }}>
-            {state.profile?.email ?? state.profile?.sub ?? ""}
+            {displayName}
           </Typography>
           <Button variant="outlined" color="primary" onClick={logout}>
             Logout

@@ -1,8 +1,9 @@
 import { Avatar, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getProfile, updateProfile, presignAvatar } from "../api/profile";
+import { getProfile, updateProfile, presignAvatar, getAvatarUrl } from "../api/profile";
 import { useNotify } from "../components/Notifications";
+import { buildChangePasswordUrl } from "../auth/auth";
 
 export default function SettingsProfilePage() {
   const [displayName, setDisplayName] = useState("");
@@ -31,6 +32,11 @@ export default function SettingsProfilePage() {
       setDisplayName(profileQuery.data.displayName ?? "");
       setAvatarKey(profileQuery.data.avatarS3Key ?? "");
       setAvatarPreview(undefined);
+      if (profileQuery.data.avatarS3Key) {
+        getAvatarUrl().then((url) => {
+          if (url) setAvatarPreview(url);
+        });
+      }
     }
   }, [profileQuery.data]);
 
@@ -104,7 +110,11 @@ export default function SettingsProfilePage() {
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
           Change password via Cognito hosted UI.
         </Typography>
-        <Button variant="outlined" sx={{ mt: 2 }}>
+        <Button
+          variant="outlined"
+          sx={{ mt: 2 }}
+          onClick={() => window.location.assign(buildChangePasswordUrl())}
+        >
           Change Password
         </Button>
       </Paper>

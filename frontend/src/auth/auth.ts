@@ -6,6 +6,7 @@ const domain = import.meta.env.VITE_COGNITO_DOMAIN;
 const clientId = import.meta.env.VITE_COGNITO_CLIENT_ID;
 const redirectUri = import.meta.env.VITE_COGNITO_REDIRECT_URI;
 const logoutUri = import.meta.env.VITE_COGNITO_LOGOUT_URI;
+const changePasswordRedirect = redirectUri; // reuse login redirect
 
 const verifierKey = "jira-lite-pkce";
 
@@ -83,6 +84,17 @@ export function buildLogoutUrl(): string {
     logout_uri: logoutUri
   });
   return `https://${domain}/logout?${params.toString()}`;
+}
+
+export function buildChangePasswordUrl(): string {
+  // Jump directly to hosted UI forgot-password
+  const params = new URLSearchParams({
+    response_type: "code",
+    client_id: clientId,
+    redirect_uri: changePasswordRedirect,
+    scope: "openid email profile"
+  });
+  return `https://${domain}/forgotPassword?${params.toString()}`;
 }
 
 export type JwtProfile = {

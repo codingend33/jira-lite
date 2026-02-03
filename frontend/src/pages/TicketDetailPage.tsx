@@ -179,7 +179,10 @@ export default function TicketDetailPage() {
             {commentsQuery.data?.map((comment) => (
               <Box key={comment.id} sx={{ p: 2, border: "1px solid #e5e7eb", borderRadius: 1 }}>
                 <Typography variant="body2" color="text.secondary">
-                  {comment.authorId ?? "Unknown author"} ? {new Date(comment.createdAt).toLocaleString()}
+                  {memberLookup.get(comment.authorId ?? "") ??
+                    comment.authorId ??
+                    "Unknown author"}{" "}
+                  · {new Date(comment.createdAt).toLocaleString()}
                 </Typography>
                 <Typography variant="body1">{comment.body}</Typography>
               </Box>

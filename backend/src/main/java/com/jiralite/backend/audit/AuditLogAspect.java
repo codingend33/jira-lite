@@ -7,7 +7,6 @@ import java.util.UUID;
 import org.aspectj.lang.JoinPoint;
 import org.aspectj.lang.annotation.AfterReturning;
 import org.aspectj.lang.annotation.Aspect;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -55,7 +54,7 @@ public class AuditLogAspect {
         entity.setDetails(details);
         entity.setCreatedAt(OffsetDateTime.now());
 
-        persistAsync(entity);
+        persist(entity);
     }
 
     private UUID currentUserId(TenantContext context) {
@@ -113,9 +112,12 @@ public class AuditLogAspect {
         return obj.toString();
     }
 
-    @Async
-    protected void persistAsync(AuditLogEntity entity) {
-        auditLogRepository.save(entity);
+    protected void persist(AuditLogEntity entity) {
+        try {
+            auditLogRepository.save(entity);
+        } catch (Exception e) {
+            // swallow to avoid breaking main flow
+        }
     }
 
     record AuditPayload(Object args, Object result) {

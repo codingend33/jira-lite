@@ -1,14 +1,16 @@
 package com.jiralite.backend.controller;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -38,7 +40,8 @@ class NotificationControllerTest {
         NotificationEntity n = new NotificationEntity();
         n.setId(UUID.randomUUID());
         n.setContent("hello");
-        when(notificationService.listForCurrentUser()).thenReturn(List.of(n));
+        when(notificationService.listForCurrentUser(any()))
+                .thenReturn(new PageImpl<>(java.util.List.of(n), PageRequest.of(0, 50), 1));
 
         mockMvc.perform(get("/notifications").accept(MediaType.APPLICATION_JSON))
                 .andExpect(status().isOk());
