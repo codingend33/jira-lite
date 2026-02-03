@@ -17,6 +17,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
 import PaginationControls from "../components/PaginationControls";
+import { useAuth } from "../auth/AuthContext";
 import { useProjects } from "../query/projectQueries";
 import { useTickets, useSearchTickets } from "../query/ticketQueries";
 import { useOrgMembers } from "../query/memberQueries";
@@ -27,8 +28,10 @@ const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 export default function TicketsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { state } = useAuth();
   const initialProjectId = searchParams.get("projectId") ?? "";
   const keyword = searchParams.get("keyword") ?? "";
+  const assignedTo = searchParams.get("assignedTo") ?? "";
   const [filters, setFilters] = useState({
     status: "",
     priority: "",
@@ -51,9 +54,12 @@ export default function TicketsPage() {
   });
 
   const isSearching = keyword.trim().length > 0;
-  const tickets = isSearching
+  const baseTickets = isSearching
     ? (searchQuery.data as any[] | undefined) ?? []
     : (listQuery.data?.content ?? []);
+  const myUserId = state.profile?.sub || state.profile?.email;
+  const isMyTickets = assignedTo === "me" && myUserId;
+  const tickets = isMyTickets ? baseTickets.filter((t) => t.assigneeId === myUserId) : baseTickets;
 
   const projectOptions = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
   const memberLookup = useMemo(() => {
@@ -187,7 +193,7 @@ export default function TicketsPage() {
         ))}
       </Stack>
 
-      {!isSearching && (
+      {!isSearching && !isMyTickets && (
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <PaginationControls
             page={listQuery.data?.page.number ?? 0}

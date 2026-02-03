@@ -72,7 +72,7 @@ export default function DashboardPage() {
 
   const metrics = [
     { title: "Active Projects", value: metricsQuery.data?.activeProjects ?? "—", to: "/projects" },
-    { title: "My Tickets", value: metricsQuery.data?.myTickets ?? "—", to: "/tickets" },
+    { title: "My Tickets", value: metricsQuery.data?.myTickets ?? "—", to: "/tickets?assignedTo=me" },
     { title: "Team Members", value: metricsQuery.data?.members ?? "—", to: "/settings/members" }
   ];
 

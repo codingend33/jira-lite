@@ -4,6 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi } from "vitest";
 import TicketsPage from "../TicketsPage";
 
+vi.mock("../../auth/AuthContext", () => ({
+  useAuth: () => ({ state: { profile: { email: "me@test.com" } }, isAuthenticated: true })
+}));
 vi.mock("../../query/projectQueries", () => ({
   useProjects: () => ({ data: [] })
 }));

@@ -1,4 +1,19 @@
-import { AppBar, Box, Button, Container, IconButton, Toolbar, Typography, Badge, Menu, MenuItem, ListItemText, TextField, InputAdornment } from "@mui/material";
+import {
+  AppBar,
+  Avatar,
+  Badge,
+  Box,
+  Button,
+  Container,
+  IconButton,
+  InputAdornment,
+  ListItemText,
+  Menu,
+  MenuItem,
+  TextField,
+  Toolbar,
+  Typography
+} from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
@@ -8,7 +23,7 @@ import Brightness7Icon from "@mui/icons-material/Brightness7";
 import NotificationsNoneIcon from "@mui/icons-material/NotificationsNone";
 import { useMemo, useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { getProfile } from "../api/profile";
+import { getProfile, getAvatarUrl } from "../api/profile";
 import { useOrgMembers } from "../query/memberQueries";
 import { listNotifications, markNotificationRead, Notification, connectNotificationStream } from "../api/notifications";
 
@@ -17,6 +32,8 @@ export default function Layout() {
   const { mode, toggle } = useThemeContext();
   const queryClient = useQueryClient();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  // user menu anchor
+  const [userMenuEl, setUserMenuEl] = useState<null | HTMLElement>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const navigate = useNavigate();
   const membersQuery = useOrgMembers();
@@ -33,6 +50,11 @@ export default function Layout() {
   const profileQuery = useQuery({
     queryKey: ["profile"],
     queryFn: () => getProfile()
+  });
+  const avatarQuery = useQuery({
+    queryKey: ["profile", "avatar-url"],
+    queryFn: async () => (await getAvatarUrl()) ?? null,
+    enabled: Boolean(profileQuery.data?.avatarS3Key)
   });
 
   // SSE: start stream once access token存在
@@ -114,6 +136,9 @@ export default function Layout() {
   const badgeCount = unread;
 
   const displayName = profileQuery.data?.displayName || state.profile?.email || state.profile?.sub || "";
+  const accountLabel = displayName || "Account";
+  const avatarLetter = accountLabel.trim().charAt(0).toUpperCase();
+  const avatarSrc = avatarQuery.data ?? undefined;
 
   return (
     <Box minHeight="100vh">
@@ -130,9 +155,6 @@ export default function Layout() {
           </Button>
           <Button component={NavLink} to="/tickets" color="inherit">
             Tickets
-          </Button>
-          <Button component={NavLink} to="/settings/profile" color="inherit">
-            Settings
           </Button>
           <Box sx={{ flexGrow: 1 }} />
           <TextField
@@ -214,12 +236,43 @@ export default function Layout() {
               </MenuItem>
             )}
           </Menu>
-          <Typography variant="body2" sx={{ opacity: 0.7 }}>
-            {displayName}
-          </Typography>
-          <Button variant="outlined" color="primary" onClick={logout}>
-            Logout
+          <Button
+            color="inherit"
+            onClick={(e) => setUserMenuEl(e.currentTarget)}
+            startIcon={
+              <Avatar sx={{ width: 32, height: 32 }} alt={accountLabel} src={avatarSrc}>
+                {avatarLetter}
+              </Avatar>
+            }
+            aria-haspopup="true"
+            aria-controls={userMenuEl ? "user-menu" : undefined}
+            sx={{ textTransform: "none", fontWeight: 600 }}
+          >
+            {accountLabel}
           </Button>
+          <Menu
+            id="user-menu"
+            anchorEl={userMenuEl}
+            open={Boolean(userMenuEl)}
+            onClose={() => setUserMenuEl(null)}
+          >
+            <MenuItem
+              onClick={() => {
+                setUserMenuEl(null);
+                navigate("/settings/profile");
+              }}
+            >
+              <ListItemText primary="Settings" />
+            </MenuItem>
+            <MenuItem
+              onClick={() => {
+                setUserMenuEl(null);
+                logout();
+              }}
+            >
+              <ListItemText primary="Logout" />
+            </MenuItem>
+          </Menu>
         </Toolbar>
       </AppBar>
       <Container sx={{ py: 4 }}>
