@@ -34,19 +34,24 @@ public class ProjectService {
     private final ProjectRepository projectRepository;
     private final AuditLogRepository auditLogRepository;
     private final TicketRepository ticketRepository;
+    private final NotificationService notificationService;
 
     public ProjectService(ProjectRepository projectRepository,
             AuditLogRepository auditLogRepository,
-            TicketRepository ticketRepository) {
+            TicketRepository ticketRepository,
+            NotificationService notificationService) {
         this.projectRepository = projectRepository;
         this.auditLogRepository = auditLogRepository;
         this.ticketRepository = ticketRepository;
+        this.notificationService = notificationService;
     }
 
     @Transactional(readOnly = true)
     public List<ProjectResponse> listProjects() {
         UUID orgId = getOrgId();
+        // Exclude deleted projects (deletedAt IS NULL)
         return projectRepository.findAllByOrgId(orgId).stream()
+                .filter(p -> p.getDeletedAt() == null)
                 .map(this::toResponse)
                 .toList();
     }
@@ -115,9 +120,26 @@ public class ProjectService {
     @LogAudit(action = "PROJECT_ARCHIVE", entityType = "PROJECT")
     public ProjectResponse archiveProject(UUID projectId) {
         ProjectEntity project = findProject(projectId);
+
+        if (project.isArchived()) {
+            throw new ApiException(ErrorCode.BAD_REQUEST, "Project is already archived",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+        if (project.isDeleted()) {
+            throw new ApiException(ErrorCode.BAD_REQUEST, "Cannot archive a deleted project",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+
+        UUID userId = parseUuidOrNull(getUserId());
+        OffsetDateTime now = OffsetDateTime.now();
+
+        project.setArchivedAt(now);
+        project.setArchivedBy(userId);
         project.setStatus(STATUS_ARCHIVED);
-        project.setUpdatedAt(OffsetDateTime.now());
-        writeAudit("PROJECT_ARCHIVE", project.getProjectKey(), "project " + project.getProjectKey() + " archived");
+        project.setUpdatedAt(now);
+
+        writeAudit("PROJECT_ARCHIVE", project.getProjectKey(),
+                "project " + project.getProjectKey() + " archived");
         return toResponse(project);
     }
 
@@ -125,29 +147,162 @@ public class ProjectService {
     @LogAudit(action = "PROJECT_UNARCHIVE", entityType = "PROJECT")
     public ProjectResponse unarchiveProject(UUID projectId) {
         ProjectEntity project = findProject(projectId);
+
+        if (!project.isArchived()) {
+            throw new ApiException(ErrorCode.BAD_REQUEST, "Project is not archived",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+        if (project.isDeleted()) {
+            throw new ApiException(ErrorCode.BAD_REQUEST, "Cannot unarchive a deleted project",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+
+        project.setArchivedAt(null);
+        project.setArchivedBy(null);
         project.setStatus(STATUS_ACTIVE);
         project.setUpdatedAt(OffsetDateTime.now());
-        writeAudit("PROJECT_UNARCHIVE", project.getProjectKey(), "project " + project.getProjectKey() + " unarchived");
+
+        writeAudit("PROJECT_UNARCHIVE", project.getProjectKey(),
+                "project " + project.getProjectKey() + " unarchived");
         return toResponse(project);
     }
 
+    /**
+     * Soft delete a project and cascade to all its tickets, comments, attachments.
+     * Pre-conditions: must be archived and have no active tickets
+     * (OPEN/IN_PROGRESS).
+     */
     @Transactional
-    @LogAudit(action = "PROJECT_DELETE", entityType = "PROJECT")
-    public void deleteProject(UUID projectId) {
+    @LogAudit(action = "PROJECT_SOFT_DELETE", entityType = "PROJECT")
+    public void softDeleteProject(UUID projectId) {
         ProjectEntity project = findProject(projectId);
-        if (ticketRepository.existsByOrgIdAndProjectId(project.getOrgId(), project.getId())) {
+        UUID userId = parseUuidOrNull(getUserId());
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime purgeAfter = now.plusDays(30);
+
+        // Pre-check: must be archived
+        if (!project.isArchived()) {
             throw new ApiException(ErrorCode.BAD_REQUEST,
-                    "Project has tickets. Delete/transfer tickets first or archive the project.",
+                    "Project must be archived before deletion. Archive it first.",
                     HttpStatus.BAD_REQUEST.value());
         }
-        try {
-            projectRepository.delete(project);
-            writeAudit("PROJECT_DELETE", project.getProjectKey(), "project " + project.getProjectKey() + " deleted");
-        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+
+        // Pre-check: no active tickets (OPEN or IN_PROGRESS)
+        long activeTickets = ticketRepository.countActiveByProjectIdAndStatusIn(
+                project.getId(), List.of("OPEN", "IN_PROGRESS"));
+        if (activeTickets > 0) {
             throw new ApiException(ErrorCode.BAD_REQUEST,
-                    "Project has related tickets or data; delete tickets first or archive the project",
+                    "Project has " + activeTickets + " active tickets. Close them before deletion.",
                     HttpStatus.BAD_REQUEST.value());
         }
+
+        // Cascade soft delete all tickets
+        ticketRepository.softDeleteByProjectId(project.getId(), now, userId, purgeAfter);
+
+        // Soft delete the project
+        project.setDeletedAt(now);
+        project.setDeletedBy(userId);
+        project.setPurgeAfter(purgeAfter);
+        project.setUpdatedAt(now);
+
+        writeAudit("PROJECT_SOFT_DELETE", project.getProjectKey(),
+                "project " + project.getProjectKey() + " moved to trash");
+
+        // Notify creator
+        String purgeDate = purgeAfter.toLocalDate().toString();
+        if (project.getCreatedBy() != null) {
+            notificationService.createNotification(project.getCreatedBy(), "PROJECT_DELETED",
+                    "Project " + project.getName() + " (" + project.getProjectKey() + ") has been moved to trash. " +
+                            "It will be permanently deleted on " + purgeDate
+                            + ". [View in Trash](/trash?type=project)");
+        }
+    }
+
+    /**
+     * Restore a soft-deleted project and cascade restore all its tickets.
+     * Pre-check: project key must not conflict with existing active projects.
+     */
+    @Transactional
+    @LogAudit(action = "PROJECT_RESTORE", entityType = "PROJECT")
+    public ProjectResponse restoreProject(UUID projectId) {
+        UUID orgId = getOrgId();
+        ProjectEntity project = projectRepository.findById(projectId)
+                .filter(p -> p.getOrgId().equals(orgId))
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Project not found",
+                        HttpStatus.NOT_FOUND.value()));
+
+        if (!project.isDeleted()) {
+            throw new ApiException(ErrorCode.BAD_REQUEST, "Project is not in trash",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+
+        // Check for key conflict
+        if (projectRepository.existsActiveByOrgIdAndProjectKey(orgId, project.getProjectKey())) {
+            throw new ApiException(ErrorCode.BAD_REQUEST,
+                    "Cannot restore: project key '" + project.getProjectKey() + "' already exists. " +
+                            "Delete the conflicting project or contact admin.",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+
+        UUID userId = parseUuidOrNull(getUserId());
+        OffsetDateTime now = OffsetDateTime.now();
+
+        // Cascade restore all tickets
+        ticketRepository.restoreByProjectId(project.getId(), now, userId);
+
+        // Restore the project (remains archived)
+        project.setDeletedAt(null);
+        project.setDeletedBy(null);
+        project.setPurgeAfter(null);
+        project.setRestoredAt(now);
+        project.setRestoredBy(userId);
+        project.setUpdatedAt(now);
+
+        writeAudit("PROJECT_RESTORE", project.getProjectKey(),
+                "project " + project.getProjectKey() + " restored from trash");
+
+        // Notify creator
+        if (project.getCreatedBy() != null) {
+            notificationService.createNotification(project.getCreatedBy(), "PROJECT_RESTORED",
+                    "Project " + project.getName() + " (" + project.getProjectKey() + ") has been restored from trash. "
+                            +
+                            "[View Project](/projects/" + project.getId() + ")");
+        }
+
+        return toResponse(project);
+    }
+
+    /**
+     * Get all projects in trash for current org.
+     */
+    @Transactional(readOnly = true)
+    public List<ProjectResponse> listTrashProjects() {
+        UUID orgId = getOrgId();
+        return projectRepository.findTrashByOrgId(orgId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /**
+     * Get active projects (not archived, not deleted) for current org.
+     */
+    @Transactional(readOnly = true)
+    public List<ProjectResponse> listActiveProjects() {
+        UUID orgId = getOrgId();
+        return projectRepository.findActiveByOrgId(orgId).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /**
+     * Get archived projects (not deleted) for current org.
+     */
+    @Transactional(readOnly = true)
+    public List<ProjectResponse> listArchivedProjects() {
+        UUID orgId = getOrgId();
+        return projectRepository.findArchivedByOrgId(orgId).stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     private ProjectEntity findProject(UUID projectId) {

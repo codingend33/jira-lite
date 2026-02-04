@@ -73,9 +73,9 @@ public class ProjectsController {
 
     @DeleteMapping("/{projectId}")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Delete project in current org (ADMIN only)")
+    @Operation(summary = "Soft delete project (move to trash, ADMIN only)")
     public ResponseEntity<Void> deleteProject(@PathVariable UUID projectId) {
-        projectService.deleteProject(projectId);
+        projectService.softDeleteProject(projectId);
         return ResponseEntity.noContent().build();
     }
 
@@ -91,5 +91,33 @@ public class ProjectsController {
     @Operation(summary = "Unarchive project in current org (ADMIN only)")
     public ResponseEntity<ProjectResponse> unarchiveProject(@PathVariable UUID projectId) {
         return ResponseEntity.ok(projectService.unarchiveProject(projectId));
+    }
+
+    @PostMapping("/{projectId}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Restore project from trash (ADMIN only)")
+    public ResponseEntity<ProjectResponse> restoreProject(@PathVariable UUID projectId) {
+        return ResponseEntity.ok(projectService.restoreProject(projectId));
+    }
+
+    @GetMapping("/active")
+    @PreAuthorize("hasAnyRole('ADMIN','MEMBER')")
+    @Operation(summary = "List active (not archived, not deleted) projects")
+    public ResponseEntity<List<ProjectResponse>> listActiveProjects() {
+        return ResponseEntity.ok(projectService.listActiveProjects());
+    }
+
+    @GetMapping("/archived")
+    @PreAuthorize("hasAnyRole('ADMIN','MEMBER')")
+    @Operation(summary = "List archived projects")
+    public ResponseEntity<List<ProjectResponse>> listArchivedProjects() {
+        return ResponseEntity.ok(projectService.listArchivedProjects());
+    }
+
+    @GetMapping("/trash")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "List projects in trash (ADMIN only)")
+    public ResponseEntity<List<ProjectResponse>> listTrashProjects() {
+        return ResponseEntity.ok(projectService.listTrashProjects());
     }
 }

@@ -28,7 +28,9 @@ import com.jiralite.backend.exception.ApiException;
 import com.jiralite.backend.repository.OrgMembershipRepository;
 import com.jiralite.backend.repository.ProjectRepository;
 import com.jiralite.backend.repository.TicketRepository;
-import com.jiralite.backend.service.NotificationService;
+import com.jiralite.backend.repository.TicketCommentRepository;
+import com.jiralite.backend.repository.TicketAttachmentRepository;
+
 import com.jiralite.backend.repository.AuditLogRepository;
 import com.jiralite.backend.entity.AuditLogEntity;
 import com.jiralite.backend.security.tenant.TenantContext;
@@ -46,18 +48,27 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final ProjectRepository projectRepository;
     private final OrgMembershipRepository membershipRepository;
+    private final TicketCommentRepository commentRepository;
+    private final TicketAttachmentRepository attachmentRepository;
     private final NotificationService notificationService;
     private final AuditLogRepository auditLogRepository;
+
+    private static final int MAX_COMMENTS_FOR_DELETE = 5;
+    private static final int MAX_ATTACHMENTS_FOR_DELETE = 10;
 
     public TicketService(
             TicketRepository ticketRepository,
             ProjectRepository projectRepository,
             OrgMembershipRepository membershipRepository,
+            TicketCommentRepository commentRepository,
+            TicketAttachmentRepository attachmentRepository,
             NotificationService notificationService,
             AuditLogRepository auditLogRepository) {
         this.ticketRepository = ticketRepository;
         this.projectRepository = projectRepository;
         this.membershipRepository = membershipRepository;
+        this.commentRepository = commentRepository;
+        this.attachmentRepository = attachmentRepository;
         this.notificationService = notificationService;
         this.auditLogRepository = auditLogRepository;
     }
@@ -71,6 +82,8 @@ public class TicketService {
         UUID orgId = getOrgId();
         Specification<TicketEntity> spec = (root, query, cb) -> cb.conjunction();
         spec = spec.and(orgEquals(orgId));
+        // Exclude deleted tickets
+        spec = spec.and(notDeleted());
         Specification<TicketEntity> statusSpec = statusEquals(status);
         if (statusSpec != null) {
             spec = spec.and(statusSpec);
@@ -234,13 +247,154 @@ public class TicketService {
         return toResponse(ticket);
     }
 
+    /**
+     * Soft delete a ticket with cascade to comments and attachments.
+     * Pre-conditions:
+     * - Must be ADMIN or creator
+     * - Comments count < 5
+     * - Attachments count < 10
+     * - Parent project not deleted
+     */
     @Transactional
-    @LogAudit(action = "TICKET_DELETE", entityType = "TICKET")
-    public void deleteTicket(UUID ticketId) {
+    @LogAudit(action = "TICKET_SOFT_DELETE", entityType = "TICKET")
+    public void softDeleteTicket(UUID ticketId, String reason) {
         TicketEntity ticket = findTicket(ticketId);
-        ticketRepository.delete(ticket);
-        writeAudit("TICKET_DELETE", "TICKET", ticket.getTicketKey(),
-                "Ticket %s deleted".formatted(ticket.getTicketKey()));
+        UUID userId = parseUuidOrNull(getUserId());
+        OffsetDateTime now = OffsetDateTime.now();
+        OffsetDateTime purgeAfter = now.plusDays(30);
+
+        // Pre-check: parent project not deleted
+        ProjectEntity project = projectRepository.findById(ticket.getProjectId()).orElse(null);
+        if (project != null && project.isDeleted()) {
+            throw new ApiException(ErrorCode.BAD_REQUEST,
+                    "Cannot delete ticket: parent project is in trash",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+
+        // Pre-check: permission (ADMIN or creator)
+        boolean isAdmin = TenantContextHolder.getRequired().roles().stream()
+                .anyMatch(r -> r.equalsIgnoreCase("ADMIN") || r.equalsIgnoreCase("ROLE_ADMIN"));
+        boolean isCreator = userId != null && userId.equals(ticket.getCreatedBy());
+        if (!isAdmin && !isCreator) {
+            throw new ApiException(ErrorCode.FORBIDDEN,
+                    "Only ADMIN or ticket creator can delete tickets",
+                    HttpStatus.FORBIDDEN.value());
+        }
+
+        // Pre-check: comments threshold
+        long commentCount = commentRepository.countActiveByTicketId(ticketId);
+        if (commentCount >= MAX_COMMENTS_FOR_DELETE) {
+            throw new ApiException(ErrorCode.BAD_REQUEST,
+                    "Cannot delete: ticket has " + commentCount + " comments (max " + MAX_COMMENTS_FOR_DELETE + ")",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+
+        // Pre-check: attachments threshold
+        long attachmentCount = attachmentRepository.countActiveByTicketId(ticketId);
+        if (attachmentCount >= MAX_ATTACHMENTS_FOR_DELETE) {
+            throw new ApiException(ErrorCode.BAD_REQUEST,
+                    "Cannot delete: ticket has " + attachmentCount + " attachments (max " + MAX_ATTACHMENTS_FOR_DELETE
+                            + ")",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+
+        // Cascade soft delete comments and attachments
+        commentRepository.softDeleteByTicketId(ticketId, now, userId);
+        attachmentRepository.softDeleteByTicketId(ticketId, now, userId);
+
+        // Soft delete the ticket
+        ticket.setDeletedAt(now);
+        ticket.setDeletedBy(userId);
+        ticket.setPurgeAfter(purgeAfter);
+        ticket.setDeletedReason(reason);
+        ticket.setUpdatedAt(now);
+
+        // Notify assignee and creator
+        String purgeDate = purgeAfter.toLocalDate().toString();
+        long daysRemaining = 30; // Initial value
+
+        notifyAssignee(ticket.getAssigneeId(), "TICKET_DELETED",
+                "Ticket " + ticket.getTicketKey() + " has been moved to trash. " +
+                        "It will be permanently deleted in " + daysRemaining + " days (" + purgeDate
+                        + "). [View in Trash](/trash?type=ticket)");
+        if (ticket.getCreatedBy() != null && !ticket.getCreatedBy().equals(ticket.getAssigneeId())) {
+            notificationService.createNotification(ticket.getCreatedBy(), "TICKET_DELETED",
+                    "Ticket " + ticket.getTicketKey() + " has been moved to trash. " +
+                            "It will be permanently deleted in " + daysRemaining + " days (" + purgeDate
+                            + "). [View in Trash](/trash?type=ticket)");
+        }
+
+        writeAudit("TICKET_SOFT_DELETE", "TICKET", ticket.getTicketKey(),
+                "Ticket %s moved to trash".formatted(ticket.getTicketKey()));
+    }
+
+    /**
+     * Restore a soft-deleted ticket with cascade restore of comments and
+     * attachments.
+     * Pre-check: parent project must be active (not deleted).
+     */
+    @Transactional
+    @LogAudit(action = "TICKET_RESTORE", entityType = "TICKET")
+    public TicketResponse restoreTicket(UUID ticketId) {
+        UUID orgId = getOrgId();
+        TicketEntity ticket = ticketRepository.findById(ticketId)
+                .filter(t -> t.getOrgId().equals(orgId))
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Ticket not found",
+                        HttpStatus.NOT_FOUND.value()));
+
+        if (!ticket.isDeleted()) {
+            throw new ApiException(ErrorCode.BAD_REQUEST, "Ticket is not in trash",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+
+        // Pre-check: parent project not deleted
+        ProjectEntity project = projectRepository.findById(ticket.getProjectId()).orElse(null);
+        if (project != null && project.isDeleted()) {
+            throw new ApiException(ErrorCode.BAD_REQUEST,
+                    "Cannot restore: parent project is in trash. Restore the project first.",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+
+        UUID userId = parseUuidOrNull(getUserId());
+        OffsetDateTime now = OffsetDateTime.now();
+
+        // Cascade restore comments and attachments
+        commentRepository.restoreByTicketId(ticketId);
+        attachmentRepository.restoreByTicketId(ticketId);
+
+        // Restore the ticket
+        ticket.setDeletedAt(null);
+        ticket.setDeletedBy(null);
+        ticket.setPurgeAfter(null);
+        ticket.setDeletedReason(null);
+        ticket.setRestoredAt(now);
+        ticket.setRestoredBy(userId);
+        ticket.setUpdatedAt(now);
+
+        // Notify assignee and creator
+        notifyAssignee(ticket.getAssigneeId(), "TICKET_RESTORED",
+                "Ticket " + ticket.getTicketKey() + " has been restored from trash. [View Ticket](/tickets/"
+                        + ticket.getId() + ")");
+        if (ticket.getCreatedBy() != null && !ticket.getCreatedBy().equals(ticket.getAssigneeId())) {
+            notificationService.createNotification(ticket.getCreatedBy(), "TICKET_RESTORED",
+                    "Ticket " + ticket.getTicketKey() + " has been restored from trash. [View Ticket](/tickets/"
+                            + ticket.getId() + ")");
+        }
+
+        writeAudit("TICKET_RESTORE", "TICKET", ticket.getTicketKey(),
+                "Ticket %s restored from trash".formatted(ticket.getTicketKey()));
+        return toResponse(ticket);
+    }
+
+    /**
+     * List tickets in trash for current org (ADMIN only).
+     */
+    @Transactional(readOnly = true)
+    public List<TicketResponse> listTrashTickets() {
+        UUID orgId = getOrgId();
+        return ticketRepository.findTrashByOrgId(orgId).stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     private void notifyAssignee(UUID assigneeId, String type, String content) {
@@ -373,6 +527,10 @@ public class TicketService {
             return null;
         }
         return (root, query, cb) -> cb.equal(root.get("projectId"), projectId);
+    }
+
+    private Specification<TicketEntity> notDeleted() {
+        return (root, query, cb) -> cb.isNull(root.get("deletedAt"));
     }
 
     private UUID parseUuidOrNull(String value) {

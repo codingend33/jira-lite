@@ -156,6 +156,9 @@ export default function Layout() {
           <Button component={NavLink} to="/tickets" color="inherit">
             Tickets
           </Button>
+          <Button component={NavLink} to="/trash" color="inherit">
+            Trash
+          </Button>
           <Box sx={{ flexGrow: 1 }} />
           <TextField
             size="small"

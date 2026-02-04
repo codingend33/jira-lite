@@ -28,6 +28,13 @@ import {
 import { useTicket, useTransitionTicket } from "../query/ticketQueries";
 import { useOrgMembers } from "../query/memberQueries";
 import { useProjects } from "../query/projectQueries";
+import { useSoftDeleteTicket } from "../query/trashQueries";
+import {
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle
+} from "@mui/material";
 
 const STATUSES = ["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"];
 
@@ -47,9 +54,18 @@ export default function TicketDetailPage() {
   const deleteAttachment = useDeleteAttachment(ticketId);
   const membersQuery = useOrgMembers();
   const projectsQuery = useProjects();
+  const softDeleteTicket = useSoftDeleteTicket();
 
   const [commentBody, setCommentBody] = useState("");
   const [nextStatus, setNextStatus] = useState("OPEN");
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const handleDeleteTicket = async () => {
+    await softDeleteTicket.mutateAsync({ id: ticketId });
+    notifySuccess("Ticket moved to trash");
+    navigate("/tickets");
+  };
+
 
   const handleAddComment = async () => {
     if (!commentBody.trim()) {
@@ -135,9 +151,14 @@ export default function TicketDetailPage() {
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
           {ticket.key}
         </Typography>
-        <Button variant="outlined" onClick={() => navigate(`/tickets/${ticketId}/edit`)}>
-          Edit Ticket
-        </Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" onClick={() => navigate(`/tickets/${ticketId}/edit`)}>
+            Edit Ticket
+          </Button>
+          <Button variant="outlined" color="error" onClick={() => setConfirmDelete(true)}>
+            Delete
+          </Button>
+        </Stack>
       </Box>
 
       <Card variant="outlined">
@@ -150,9 +171,8 @@ export default function TicketDetailPage() {
             <Chip label={ticket.status} color="primary" />
             <Chip label={ticket.priority} />
             <Chip
-              label={`Project ${
-                projectLookup.get(ticket.projectId)?.key ?? projectLookup.get(ticket.projectId)?.name ?? ticket.projectId.slice(0, 8)
-              }`}
+              label={`Project ${projectLookup.get(ticket.projectId)?.key ?? projectLookup.get(ticket.projectId)?.name ?? ticket.projectId.slice(0, 8)
+                }`}
             />
             <Chip
               label={
@@ -238,6 +258,7 @@ export default function TicketDetailPage() {
                   <Button
                     size="small"
                     color="error"
+                    aria-label={`Delete attachment ${attachment.fileName}`}
                     onClick={() => handleDelete(attachment.id)}
                     disabled={deleteAttachment.isPending}
                   >
@@ -253,6 +274,23 @@ export default function TicketDetailPage() {
           </Button>
         </CardContent>
       </Card>
+      <Dialog open={confirmDelete} onClose={() => setConfirmDelete(false)}>
+        <DialogTitle>Move ticket to trash?</DialogTitle>
+        <DialogContent>
+          <Typography>
+            {"Ticket \"" + ticket.key + "\" will be moved to trash."}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Items in trash are automatically deleted after 30 days. You can restore them before then.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmDelete(false)}>Cancel</Button>
+          <Button color="error" variant="contained" onClick={handleDeleteTicket} disabled={softDeleteTicket.isPending}>
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

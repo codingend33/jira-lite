@@ -113,4 +113,93 @@ public class ProjectEntity {
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    // --- Soft Delete / Archive Fields ---
+
+    @Column(name = "archived_at")
+    private OffsetDateTime archivedAt;
+
+    @Column(name = "archived_by")
+    private UUID archivedBy;
+
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private UUID deletedBy;
+
+    @Column(name = "purge_after")
+    private OffsetDateTime purgeAfter;
+
+    @Column(name = "restored_at")
+    private OffsetDateTime restoredAt;
+
+    @Column(name = "restored_by")
+    private UUID restoredBy;
+
+    public OffsetDateTime getArchivedAt() {
+        return archivedAt;
+    }
+
+    public void setArchivedAt(OffsetDateTime archivedAt) {
+        this.archivedAt = archivedAt;
+    }
+
+    public UUID getArchivedBy() {
+        return archivedBy;
+    }
+
+    public void setArchivedBy(UUID archivedBy) {
+        this.archivedBy = archivedBy;
+    }
+
+    public OffsetDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(OffsetDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    public UUID getDeletedBy() {
+        return deletedBy;
+    }
+
+    public void setDeletedBy(UUID deletedBy) {
+        this.deletedBy = deletedBy;
+    }
+
+    public OffsetDateTime getPurgeAfter() {
+        return purgeAfter;
+    }
+
+    public void setPurgeAfter(OffsetDateTime purgeAfter) {
+        this.purgeAfter = purgeAfter;
+    }
+
+    public OffsetDateTime getRestoredAt() {
+        return restoredAt;
+    }
+
+    public void setRestoredAt(OffsetDateTime restoredAt) {
+        this.restoredAt = restoredAt;
+    }
+
+    public UUID getRestoredBy() {
+        return restoredBy;
+    }
+
+    public void setRestoredBy(UUID restoredBy) {
+        this.restoredBy = restoredBy;
+    }
+
+    // --- Utility Methods ---
+
+    public boolean isArchived() {
+        return archivedAt != null;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
 }

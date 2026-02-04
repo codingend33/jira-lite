@@ -45,3 +45,8 @@ aws:
   region: ap-southeast-2
   cognito:
     user-pool-id: ap-southeast-2_OSgSyM6xO
+
+ai:
+  gemini:
+    api-key: AIzaSyCc7JZVcGCDymRt7erLcVLQqhjToTlTYP4
+    model: gemini-2.0-flash-lite

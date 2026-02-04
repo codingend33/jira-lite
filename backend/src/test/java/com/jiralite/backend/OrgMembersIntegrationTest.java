@@ -143,6 +143,11 @@ class OrgMembersIntegrationTest {
 
     @Test
     void admin_can_update_member_role_and_status() throws Exception {
+        // add a second admin so downgrading USER_A doesn't violate "only admin" rule
+        UUID extraAdmin = UUID.fromString("dddddddd-dddd-dddd-dddd-dddddddddddd");
+        userRepository.save(user(extraAdmin, "user-d@example.com", "User D"));
+        membershipRepository.save(membership(ORG_1, extraAdmin, "ADMIN", "ACTIVE"));
+
         String payload = "{\"role\":\"MEMBER\",\"status\":\"DISABLED\"}";
         mockMvc.perform(patch("/org/members/{userId}", USER_A)
                         .header("Authorization", "Bearer admin-token")

@@ -80,3 +80,31 @@ describe("ProjectsPage", () => {
     await waitFor(() => expect(mutateAsync).toHaveBeenCalledWith({ key: "APP", name: "App", description: undefined }));
   });
 });
+
+describe("ProjectsPage permissions", () => {
+  beforeEach(() => {
+    mockedUseAuth.mockReturnValue({
+      state: { profile: { "cognito:groups": ["MEMBER"] } },
+      isAuthenticated: true,
+      login: vi.fn(),
+      handleCallback: vi.fn(),
+      logout: vi.fn()
+    } as any);
+    vi.mocked(memberQueries.useOrgMembers).mockReturnValue({ data: [], error: null } as any);
+    vi.mocked(projectQueries.useProjects).mockReturnValue({
+      isLoading: false,
+      data: [{ id: "1", key: "OPS", name: "Ops", description: "desc", status: "ACTIVE" }]
+    } as any);
+    vi.mocked(projectQueries.useCreateProject).mockReturnValue({ mutateAsync: vi.fn(), isPending: false } as any);
+    vi.mocked(projectQueries.useArchiveProject).mockReturnValue({ mutate: vi.fn() } as any);
+    vi.mocked(projectQueries.useUnarchiveProject).mockReturnValue({ mutate: vi.fn() } as any);
+    vi.mocked(projectQueries.useDeleteProject).mockReturnValue({ mutate: vi.fn() } as any);
+  });
+
+  it("hides admin-only actions for member", () => {
+    render(<ProjectsPage />, { wrapper: qcWrapper });
+
+    expect(screen.queryByRole("button", { name: /Invite Members/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /New Project/i })).not.toBeInTheDocument();
+  });
+});

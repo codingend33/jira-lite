@@ -13,6 +13,7 @@ import TicketFormPage from "./pages/TicketFormPage";
 import SettingsProfilePage from "./pages/SettingsProfilePage";
 import SettingsMembersPage from "./pages/SettingsMembersPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import TrashPage from "./pages/TrashPage";
 import { useEffect } from "react";
 import { useNotify } from "./components/Notifications";
 
@@ -63,6 +64,7 @@ export default function App() {
         <Route path="/tickets/new" element={<TicketFormPage mode="create" />} />
         <Route path="/tickets/:ticketId" element={<TicketDetailPage />} />
         <Route path="/tickets/:ticketId/edit" element={<TicketFormPage mode="edit" />} />
+        <Route path="/trash" element={<TrashPage />} />
         <Route path="/settings/profile" element={<SettingsProfilePage />} />
         <Route path="/settings/members" element={<SettingsMembersPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />

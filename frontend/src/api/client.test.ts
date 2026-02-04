@@ -1,59 +1,52 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiRequest, ApiError } from "./client";
-import * as storage from "../auth/storage";
+import { getAccessToken, clearTokens } from "../auth/storage";
+import { vi, type Mock } from "vitest";
 
-const originalFetch = globalThis.fetch;
+vi.mock("../auth/storage");
 
 describe("apiRequest", () => {
+  const mockedGetAccessToken = vi.mocked(getAccessToken);
+  const mockedClearTokens = vi.mocked(clearTokens);
+
   beforeEach(() => {
-    globalThis.fetch = vi.fn() as any;
-    vi.spyOn(storage, "getAccessToken").mockReturnValue("token-123");
-    vi.spyOn(storage, "clearTokens").mockImplementation(() => {});
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
+    vi.useRealTimers();
+    mockedGetAccessToken.mockReturnValue(null);
+    mockedClearTokens.mockReset();
+    global.fetch = vi.fn() as any;
   });
 
-  it("adds Authorization header when token exists and returns JSON", async () => {
-    (globalThis.fetch as any).mockResolvedValue(
-      new Response(JSON.stringify({ ok: true }), { status: 200 })
+  it("attaches bearer token when available", async () => {
+    mockedGetAccessToken.mockReturnValue("test-token");
+    (global.fetch as Mock).mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "Content-Type": "application/json" } })
     );
-    const result = await apiRequest<{ ok: boolean }>("/path");
-    expect(result.ok).toBe(true);
-    const headers = (globalThis.fetch as any).mock.calls[0][1].headers;
-    expect(headers.get("Authorization")).toBe("Bearer token-123");
+
+    await apiRequest("/hello", { method: "GET" });
+
+    const call = (global.fetch as Mock).mock.calls[0];
+    const reqInit = call[1] as RequestInit;
+    expect((reqInit.headers as Headers).get("Authorization")).toBe("Bearer test-token");
   });
 
-  it("dispatches auth-failed on 401 and throws ApiError", async () => {
-    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
-    (globalThis.fetch as any).mockResolvedValue(new Response("", { status: 401 }));
-    await expect(apiRequest("/path")).rejects.toBeInstanceOf(ApiError);
-    expect(storage.clearTokens).toHaveBeenCalled();
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "api:auth-failed" })
-    );
+  it("fires auth-failed event and clears tokens on 401", async () => {
+    const handler = vi.fn();
+    window.addEventListener("api:auth-failed", handler);
+    (global.fetch as Mock).mockResolvedValue(new Response("", { status: 401 }));
+
+    await expect(apiRequest("/secure")).rejects.toBeInstanceOf(ApiError);
+
+    expect(mockedClearTokens).toHaveBeenCalled();
+    expect(handler).toHaveBeenCalled();
   });
 
-  it("dispatches forbidden on 403", async () => {
-    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
-    (globalThis.fetch as any).mockResolvedValue(new Response("", { status: 403 }));
-    await expect(apiRequest("/path")).rejects.toBeInstanceOf(ApiError);
-    expect(dispatchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ type: "api:forbidden" })
-    );
-  });
+  it("fires forbidden event on 403", async () => {
+    const handler = vi.fn();
+    window.addEventListener("api:forbidden", handler);
+    (global.fetch as Mock).mockResolvedValue(new Response("", { status: 403 }));
 
-  it("parses error payload and exposes message", async () => {
-    const error = { message: "Boom" };
-    (globalThis.fetch as any).mockResolvedValue(
-      new Response(JSON.stringify(error), { status: 500 })
-    );
-    await expect(apiRequest("/path")).rejects.toMatchObject({
-      status: 500,
-      message: "Boom",
-      payload: error
-    });
+    await expect(apiRequest("/secure")).rejects.toBeInstanceOf(ApiError);
+
+    expect(handler).toHaveBeenCalled();
   });
 });

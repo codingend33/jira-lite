@@ -23,18 +23,24 @@ import com.jiralite.backend.repository.AuditLogRepository;
 import com.jiralite.backend.repository.OrgMembershipRepository;
 import com.jiralite.backend.repository.ProjectRepository;
 import com.jiralite.backend.repository.TicketRepository;
+import com.jiralite.backend.repository.TicketCommentRepository;
+import com.jiralite.backend.repository.TicketAttachmentRepository;
 import com.jiralite.backend.security.tenant.TenantContext;
 import com.jiralite.backend.security.tenant.TenantContextHolder;
 
 @ExtendWith(MockitoExtension.class)
 class TicketServiceTest {
 
-        @Mock
-        private TicketRepository ticketRepository;
-        @Mock
+    @Mock
+    private TicketRepository ticketRepository;
+    @Mock
     private ProjectRepository projectRepository;
     @Mock
     private OrgMembershipRepository membershipRepository;
+    @Mock
+    private TicketCommentRepository commentRepository;
+    @Mock
+    private TicketAttachmentRepository attachmentRepository;
     @Mock
     private NotificationService notificationService;
     @Mock
@@ -42,66 +48,66 @@ class TicketServiceTest {
 
     private TicketService ticketService;
 
-        private final UUID ORG_ID = UUID.randomUUID();
+    private final UUID ORG_ID = UUID.randomUUID();
     private final UUID USER_ID = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
         ticketService = new TicketService(ticketRepository, projectRepository, membershipRepository,
-                        notificationService, auditLogRepository);
+                commentRepository, attachmentRepository, notificationService, auditLogRepository);
         TenantContextHolder.set(new TenantContext(ORG_ID.toString(), USER_ID.toString(),
-                        java.util.Set.of("user"), "access_token"));
+                java.util.Set.of("user"), "access_token"));
     }
 
-        @Test
-        void createTicket_InvalidPriority_ThrowsException() {
-                CreateTicketRequest request = new CreateTicketRequest();
-                request.setProjectId(UUID.randomUUID());
-                request.setTitle("Test");
-                request.setPriority("SUPER_URGENT"); // Invalid
+    @Test
+    void createTicket_InvalidPriority_ThrowsException() {
+        CreateTicketRequest request = new CreateTicketRequest();
+        request.setProjectId(UUID.randomUUID());
+        request.setTitle("Test");
+        request.setPriority("SUPER_URGENT"); // Invalid
 
-                when(projectRepository.findByIdAndOrgId(any(), eq(ORG_ID)))
-                                .thenReturn(Optional.of(new ProjectEntity()));
+        when(projectRepository.findByIdAndOrgId(any(), eq(ORG_ID)))
+                .thenReturn(Optional.of(new ProjectEntity()));
 
-                assertThatThrownBy(() -> ticketService.createTicket(request))
-                                .isInstanceOf(ApiException.class)
-                                .hasMessageContaining("Invalid priority");
-        }
+        assertThatThrownBy(() -> ticketService.createTicket(request))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("Invalid priority");
+    }
 
-        @Test
-        void transition_InvalidStatus_ThrowsException() {
-                UUID ticketId = UUID.randomUUID();
-                TicketEntity ticket = new TicketEntity();
-                ticket.setStatus("OPEN");
-                ticket.setOrgId(ORG_ID);
+    @Test
+    void transition_InvalidStatus_ThrowsException() {
+        UUID ticketId = UUID.randomUUID();
+        TicketEntity ticket = new TicketEntity();
+        ticket.setStatus("OPEN");
+        ticket.setOrgId(ORG_ID);
 
-                when(ticketRepository.findByIdAndOrgId(eq(ticketId), eq(ORG_ID)))
-                                .thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndOrgId(eq(ticketId), eq(ORG_ID)))
+                .thenReturn(Optional.of(ticket));
 
-                TransitionTicketRequest request = new TransitionTicketRequest();
-                request.setStatus("INVALID_STATUS");
+        TransitionTicketRequest request = new TransitionTicketRequest();
+        request.setStatus("INVALID_STATUS");
 
-                assertThatThrownBy(() -> ticketService.transition(ticketId, request))
-                                .isInstanceOf(ApiException.class)
-                                .hasMessageContaining("Invalid status");
-        }
+        assertThatThrownBy(() -> ticketService.transition(ticketId, request))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("Invalid status");
+    }
 
-        @Test
-        void transition_InvalidFlow_ThrowsException() {
-                // CANCELLED -> DONE is invalid
-                UUID ticketId = UUID.randomUUID();
-                TicketEntity ticket = new TicketEntity();
-                ticket.setStatus("CANCELLED");
-                ticket.setOrgId(ORG_ID);
+    @Test
+    void transition_InvalidFlow_ThrowsException() {
+        // CANCELLED -> DONE is invalid
+        UUID ticketId = UUID.randomUUID();
+        TicketEntity ticket = new TicketEntity();
+        ticket.setStatus("CANCELLED");
+        ticket.setOrgId(ORG_ID);
 
-                when(ticketRepository.findByIdAndOrgId(eq(ticketId), eq(ORG_ID)))
-                                .thenReturn(Optional.of(ticket));
+        when(ticketRepository.findByIdAndOrgId(eq(ticketId), eq(ORG_ID)))
+                .thenReturn(Optional.of(ticket));
 
-                TransitionTicketRequest request = new TransitionTicketRequest();
-                request.setStatus("DONE");
+        TransitionTicketRequest request = new TransitionTicketRequest();
+        request.setStatus("DONE");
 
-                assertThatThrownBy(() -> ticketService.transition(ticketId, request))
-                                .isInstanceOf(ApiException.class)
-                                .hasMessageContaining("Invalid status transition");
-        }
+        assertThatThrownBy(() -> ticketService.transition(ticketId, request))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("Invalid status transition");
+    }
 }
