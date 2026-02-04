@@ -10,5 +10,6 @@ public record MemberResponse(
         String email,
         String displayName,
         String role,
-        String status) {
+        String status,
+        String avatarUrl) {
 }

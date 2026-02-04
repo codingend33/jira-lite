@@ -55,7 +55,13 @@ export default function SettingsMembersPage() {
                 <TableRow key={m.userId}>
                   <TableCell>
                     <Avatar
-                      src={m.userId === profileQuery.data?.id ? avatarQuery.data ?? undefined : undefined}
+                      src={
+                        m.avatarUrl
+                          ? m.avatarUrl
+                          : m.userId === profileQuery.data?.id
+                          ? avatarQuery.data ?? undefined
+                          : undefined
+                      }
                     >
                       {(m.displayName || m.email || "?")[0]}
                     </Avatar>

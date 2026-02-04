@@ -63,6 +63,7 @@ export type Member = {
   userId: string;
   email?: string | null;
   displayName?: string | null;
+  avatarUrl?: string | null;
   role: string;
   status: string;
 };
