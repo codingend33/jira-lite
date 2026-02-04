@@ -79,6 +79,7 @@ public class ProjectService {
         project.setName(request.getName());
         project.setDescription(request.getDescription());
         project.setStatus(STATUS_ACTIVE);
+        project.setCreatedBy(parseUuidOrNull(getUserId()));
         project.setCreatedAt(now);
         project.setUpdatedAt(now);
 
@@ -164,6 +165,11 @@ public class ProjectService {
         return UUID.fromString(context.orgId());
     }
 
+    private String getUserId() {
+        TenantContext context = TenantContextHolder.getRequired();
+        return context.userId();
+    }
+
     private void writeAudit(String action, String entityId, String details) {
         try {
             TenantContext ctx = TenantContextHolder.getRequired();
@@ -188,7 +194,19 @@ public class ProjectService {
                 project.getName(),
                 project.getDescription(),
                 project.getStatus(),
+                project.getCreatedBy(),
                 project.getCreatedAt(),
                 project.getUpdatedAt());
+    }
+
+    private UUID parseUuidOrNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }

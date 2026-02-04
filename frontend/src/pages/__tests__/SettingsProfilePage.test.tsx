@@ -61,11 +61,10 @@ describe("SettingsProfilePage", () => {
 
     await screen.findByDisplayValue("Me");
     fireEvent.change(screen.getByLabelText(/Display Name/i), { target: { value: "NewMe" } });
-    fireEvent.change(screen.getByLabelText(/Avatar S3 Key/i), { target: { value: "avatars/new.png" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
     await waitFor(() => {
-      expect(updateProfile).toHaveBeenCalledWith({ displayName: "NewMe", avatarS3Key: "avatars/new.png" });
+      expect(updateProfile).toHaveBeenCalledWith({ displayName: "NewMe", avatarS3Key: "avatars/u1.png" });
     });
   });
 
@@ -86,6 +85,9 @@ describe("SettingsProfilePage", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => expect(presignAvatar).toHaveBeenCalled());
-    expect(screen.getByDisplayValue("avatars/u1/avatar.png")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    await waitFor(() =>
+      expect(updateProfile).toHaveBeenCalledWith({ displayName: "Me", avatarS3Key: "avatars/u1/avatar.png" })
+    );
   });
 });

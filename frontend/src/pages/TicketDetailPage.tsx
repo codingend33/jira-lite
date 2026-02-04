@@ -27,6 +27,7 @@ import {
 } from "../query/attachmentQueries";
 import { useTicket, useTransitionTicket } from "../query/ticketQueries";
 import { useOrgMembers } from "../query/memberQueries";
+import { useProjects } from "../query/projectQueries";
 
 const STATUSES = ["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"];
 
@@ -45,6 +46,7 @@ export default function TicketDetailPage() {
   const downloadAttachment = useDownloadAttachment(ticketId);
   const deleteAttachment = useDeleteAttachment(ticketId);
   const membersQuery = useOrgMembers();
+  const projectsQuery = useProjects();
 
   const [commentBody, setCommentBody] = useState("");
   const [nextStatus, setNextStatus] = useState("OPEN");
@@ -96,6 +98,13 @@ export default function TicketDetailPage() {
     }
     return map;
   }, [membersQuery.data]);
+  const projectLookup = useMemo(() => {
+    const map = new Map<string, { key: string; name: string }>();
+    for (const proj of projectsQuery.data ?? []) {
+      map.set(proj.id, { key: proj.key, name: proj.name });
+    }
+    return map;
+  }, [projectsQuery.data]);
 
   if (ticketQuery.isLoading) {
     return <Loading />;
@@ -140,13 +149,22 @@ export default function TicketDetailPage() {
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
             <Chip label={ticket.status} color="primary" />
             <Chip label={ticket.priority} />
-            <Chip label={`Project ${ticket.projectId.slice(0, 8)}`} />
+            <Chip
+              label={`Project ${
+                projectLookup.get(ticket.projectId)?.key ?? projectLookup.get(ticket.projectId)?.name ?? ticket.projectId.slice(0, 8)
+              }`}
+            />
             <Chip
               label={
                 ticket.assigneeId
                   ? `Assignee ${memberLookup.get(ticket.assigneeId) ?? ticket.assigneeId}`
                   : "Assignee Unassigned"
               }
+            />
+            <Chip
+              label={`Creator ${memberLookup.get(ticket.createdBy ?? "") ?? ticket.createdBy ?? "Unknown"}`}
+              variant="filled"
+              color="default"
             />
           </Box>
           <Divider />

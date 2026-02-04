@@ -12,7 +12,7 @@ import {
   TextField,
   Typography
 } from "@mui/material";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
 import InviteMembersModal from "../components/InviteMembersModal";
@@ -24,6 +24,7 @@ import {
   useProjects,
   useUnarchiveProject
 } from "../query/projectQueries";
+import { useOrgMembers } from "../query/memberQueries";
 import { useNavigate } from "react-router-dom";
 
 export default function ProjectsPage() {
@@ -34,6 +35,16 @@ export default function ProjectsPage() {
   const archiveProject = useArchiveProject();
   const unarchiveProject = useUnarchiveProject();
   const deleteProject = useDeleteProject();
+  const membersQuery = useOrgMembers();
+
+  const memberLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const member of membersQuery.data ?? []) {
+      const label = member.displayName || member.email || member.userId;
+      map.set(member.userId, label);
+    }
+    return map;
+  }, [membersQuery.data]);
 
   const [open, setOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -69,7 +80,8 @@ export default function ProjectsPage() {
     createProject.error ||
     archiveProject.error ||
     unarchiveProject.error ||
-    deleteProject.error;
+    deleteProject.error ||
+    membersQuery.error;
 
   return (
     <Stack spacing={3}>
@@ -102,7 +114,7 @@ export default function ProjectsPage() {
             onClick={() => navigate(`/projects/${project.id}`)}
             sx={{ cursor: "pointer" }}
           >
-            <CardContent sx={{ display: "grid", gap: 1.5 }}>
+            <CardContent sx={{ display: "grid", gap: 1.25 }}>
               <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                 <Typography variant="h6">
                   {project.key} - {project.name}
@@ -112,7 +124,10 @@ export default function ProjectsPage() {
               <Typography variant="body2" color="text.secondary">
                 {project.description || "No description"}
               </Typography>
-              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+              <Typography variant="caption" color="text.secondary">
+                Creator: {memberLookup.get(project.createdBy ?? "") ?? project.createdBy ?? "Unknown"}
+              </Typography>
+              <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", alignItems: "center", pt: 0.5, pl: 0 }}>
                 {project.status === "ARCHIVED" ? (
                   <Button
                     size="small"
@@ -158,11 +173,15 @@ export default function ProjectsPage() {
             value={form.key}
             onChange={(event) => setForm({ ...form, key: event.target.value.toUpperCase() })}
             helperText="Example: OPS"
+            fullWidth
+            margin="dense"
           />
           <TextField
             label="Name"
             value={form.name}
             onChange={(event) => setForm({ ...form, name: event.target.value })}
+            fullWidth
+            margin="dense"
           />
           <TextField
             label="Description"
@@ -170,6 +189,8 @@ export default function ProjectsPage() {
             onChange={(event) => setForm({ ...form, description: event.target.value })}
             multiline
             minRows={3}
+            fullWidth
+            margin="dense"
           />
         </DialogContent>
         <DialogActions>

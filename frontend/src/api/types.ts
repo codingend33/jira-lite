@@ -22,6 +22,7 @@ export type Project = {
   name: string;
   description?: string | null;
   status: string;
+  createdBy?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -35,6 +36,7 @@ export type Ticket = {
   status: string;
   priority: string;
   assigneeId?: string | null;
+  createdBy?: string | null;
   createdAt: string;
   updatedAt: string;
 };

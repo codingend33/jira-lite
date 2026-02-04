@@ -396,6 +396,7 @@ public class TicketService {
                 ticket.getStatus(),
                 ticket.getPriority(),
                 ticket.getAssigneeId(),
+                ticket.getCreatedBy(),
                 ticket.getCreatedAt(),
                 ticket.getUpdatedAt());
     }

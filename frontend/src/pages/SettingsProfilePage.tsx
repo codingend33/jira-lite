@@ -1,14 +1,39 @@
-import { Avatar, Box, Button, Paper, Stack, TextField, Typography } from "@mui/material";
+import {
+  Avatar,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+  Alert,
+  IconButton,
+  InputAdornment
+} from "@mui/material";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getProfile, updateProfile, presignAvatar, getAvatarUrl } from "../api/profile";
 import { useNotify } from "../components/Notifications";
-import { buildChangePasswordUrl } from "../auth/auth";
+import { changePassword } from "../api/changePassword";
 
 export default function SettingsProfilePage() {
   const [displayName, setDisplayName] = useState("");
   const [avatarKey, setAvatarKey] = useState("");
   const [avatarPreview, setAvatarPreview] = useState<string | undefined>();
+  const [changePwdOpen, setChangePwdOpen] = useState(false);
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [changePwdError, setChangePwdError] = useState<string | null>(null);
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const { notifySuccess, notifyError } = useNotify();
   const queryClient = useQueryClient();
@@ -25,6 +50,31 @@ export default function SettingsProfilePage() {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
     onError: () => notifyError("Failed to update profile")
+  });
+  const changePwdMutation = useMutation({
+    mutationFn: () => changePassword(currentPwd, newPwd),
+    onSuccess: () => {
+      notifySuccess("Password updated");
+      setChangePwdOpen(false);
+      setCurrentPwd("");
+      setNewPwd("");
+      setConfirmPwd("");
+      setChangePwdError(null);
+    },
+    onError: (err: any) => {
+      let msg = err?.message || "Failed to change password";
+      if (err?.name === "NotAuthorizedException") {
+        if (msg.includes("required scopes")) {
+          msg = "Access token missing required scopes. Please sign out and log in again, then retry.";
+        } else {
+          msg = "Current password is incorrect.";
+        }
+      } else if (err?.name === "InvalidPasswordException") {
+        msg = "New password does not meet policy.";
+      }
+      setChangePwdError(msg);
+      notifyError(msg);
+    }
   });
 
   useEffect(() => {
@@ -89,12 +139,6 @@ export default function SettingsProfilePage() {
           value={displayName}
           onChange={(e) => setDisplayName(e.target.value)}
         />
-        <TextField
-          label="Avatar S3 Key"
-          helperText="Auto-filled after upload"
-          value={avatarKey}
-          onChange={(e) => setAvatarKey(e.target.value)}
-        />
         <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
           <Button
             variant="contained"
@@ -108,13 +152,9 @@ export default function SettingsProfilePage() {
       <Paper sx={{ p: 3, maxWidth: 480 }}>
         <Typography variant="h6">Security</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-          Change password via Cognito hosted UI.
+          {"Change your password without leaving the app. If you forgot your current password, go to the login page and use \"Forgot password\"."}
         </Typography>
-        <Button
-          variant="outlined"
-          sx={{ mt: 2 }}
-          onClick={() => window.location.assign(buildChangePasswordUrl())}
-        >
+        <Button variant="outlined" sx={{ mt: 2 }} onClick={() => setChangePwdOpen(true)}>
           Change Password
         </Button>
       </Paper>
@@ -123,6 +163,99 @@ export default function SettingsProfilePage() {
           Last login: {new Date(profileQuery.data.lastLoginAt).toLocaleString()}
         </Typography>
       )}
+
+      <Dialog
+        open={changePwdOpen}
+        fullWidth
+        maxWidth="sm"
+        onClose={() => !changePwdMutation.isPending && setChangePwdOpen(false)}
+      >
+        <DialogTitle>Change Password</DialogTitle>
+        <DialogContent sx={{ display: "grid", gap: 2, mt: 1, minWidth: 460 }}>
+          {changePwdError && <Alert severity="error">{changePwdError}</Alert>}
+          <TextField
+            label="Current Password"
+            type={showCurrent ? "text" : "password"}
+            value={currentPwd}
+            onChange={(e) => setCurrentPwd(e.target.value)}
+            autoFocus
+            fullWidth
+            margin="dense"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle current password visibility"
+                    onClick={() => setShowCurrent((v) => !v)}
+                    edge="end"
+                  >
+                    {showCurrent ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              )
+            }}
+          />
+          <TextField
+            label="New Password"
+            type={showNew ? "text" : "password"}
+            value={newPwd}
+            onChange={(e) => setNewPwd(e.target.value)}
+            helperText="Must satisfy your Cognito password policy."
+            fullWidth
+            margin="dense"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle new password visibility"
+                    onClick={() => setShowNew((v) => !v)}
+                    edge="end"
+                  >
+                    {showNew ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              )
+            }}
+          />
+          <TextField
+            label="Confirm New Password"
+            type={showConfirm ? "text" : "password"}
+            value={confirmPwd}
+            onChange={(e) => setConfirmPwd(e.target.value)}
+            error={Boolean(confirmPwd) && newPwd !== confirmPwd}
+            helperText={newPwd !== confirmPwd ? "Passwords do not match." : " "}
+            fullWidth
+            margin="dense"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton
+                    aria-label="toggle confirm password visibility"
+                    onClick={() => setShowConfirm((v) => !v)}
+                    edge="end"
+                  >
+                    {showConfirm ? <VisibilityOff /> : <Visibility />}
+                  </IconButton>
+                </InputAdornment>
+              )
+            }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setChangePwdOpen(false)} disabled={changePwdMutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => changePwdMutation.mutate()}
+            disabled={
+              changePwdMutation.isPending || !currentPwd || !newPwd || newPwd !== confirmPwd
+            }
+          >
+            {changePwdMutation.isPending ? "Saving..." : "Change Password"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

@@ -9,6 +9,7 @@ public record ProjectResponse(
         String name,
         String description,
         String status,
+        UUID createdBy,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

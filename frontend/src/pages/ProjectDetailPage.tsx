@@ -101,6 +101,13 @@ export default function ProjectDetailPage() {
         <CardContent sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
           <Chip label={project.status} color={project.status === "ARCHIVED" ? "default" : "success"} />
           <Chip label={`Created ${new Date(project.createdAt).toLocaleDateString()}`} />
+          {project.createdBy && (
+            <Chip
+              label={`Creator ${memberLookup.get(project.createdBy) ?? project.createdBy}`}
+              color="info"
+              variant="outlined"
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -183,6 +190,14 @@ export default function ProjectDetailPage() {
                   size="small"
                   label={`Assignee ${ticket.assigneeId ? memberLookup.get(ticket.assigneeId) ?? ticket.assigneeId : "Unassigned"}`}
                 />
+                {ticket.createdBy && (
+                  <Chip
+                    size="small"
+                    color="info"
+                    variant="outlined"
+                    label={`Creator ${memberLookup.get(ticket.createdBy) ?? ticket.createdBy}`}
+                  />
+                )}
               </Box>
             </CardContent>
           </Card>

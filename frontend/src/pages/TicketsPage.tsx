@@ -41,8 +41,8 @@ export default function TicketsPage() {
     sort: "createdAt,desc"
   });
 
-  const projectsQuery = useProjects();
   const membersQuery = useOrgMembers();
+  const projectsQuery = useProjects();
   const searchQuery = useSearchTickets(keyword);
   const listQuery = useTickets({
     status: filters.status || undefined,
@@ -70,6 +70,13 @@ export default function TicketsPage() {
     }
     return map;
   }, [membersQuery.data]);
+  const projectLookup = useMemo(() => {
+    const map = new Map<string, { key: string; name: string }>();
+    for (const proj of projectsQuery.data ?? []) {
+      map.set(proj.id, { key: proj.key, name: proj.name });
+    }
+    return map;
+  }, [projectsQuery.data]);
 
   useEffect(() => {
     const projectId = searchParams.get("projectId");
@@ -180,12 +187,25 @@ export default function TicketsPage() {
               <Typography variant="body2" color="text.secondary">
                 {ticket.description || "No description"}
               </Typography>
-              <Box sx={{ display: "flex", gap: 1 }}>
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                 <Chip size="small" label={ticket.priority} />
-                <Chip size="small" label={`Project ${ticket.projectId.slice(0, 8)}`} />
+                <Chip
+                  size="small"
+                  label={`Project ${
+                    projectLookup.get(ticket.projectId)?.key ??
+                    projectLookup.get(ticket.projectId)?.name ??
+                    ticket.projectId.slice(0, 8)
+                  }`}
+                />
                 <Chip
                   size="small"
                   label={`Assignee ${ticket.assigneeId ? memberLookup.get(ticket.assigneeId) ?? ticket.assigneeId : "Unassigned"}`}
+                />
+                <Chip
+                  size="small"
+                  color="default"
+                  variant="filled"
+                  label={`Creator ${memberLookup.get(ticket.createdBy ?? "") ?? ticket.createdBy ?? "Unknown"}`}
                 />
               </Box>
             </CardContent>

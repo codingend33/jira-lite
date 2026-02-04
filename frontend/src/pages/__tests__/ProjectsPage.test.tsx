@@ -5,9 +5,11 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import ProjectsPage from "../ProjectsPage";
 import * as projectQueries from "../../query/projectQueries";
 import { useAuth } from "../../auth/AuthContext";
+import * as memberQueries from "../../query/memberQueries";
 
 vi.mock("../../auth/AuthContext");
 vi.mock("../../query/projectQueries");
+vi.mock("../../query/memberQueries");
 
 const mockedUseAuth = vi.mocked(useAuth);
 const qcWrapper = ({ children }: { children: React.ReactNode }) => {
@@ -28,6 +30,7 @@ describe("ProjectsPage", () => {
       handleCallback: vi.fn(),
       logout: vi.fn()
     } as any);
+    vi.mocked(memberQueries.useOrgMembers).mockReturnValue({ data: [], error: null } as any);
   });
 
   it("shows loading spinner while fetching", () => {
