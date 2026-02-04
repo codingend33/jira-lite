@@ -10,6 +10,7 @@ import {
   DialogTitle,
   Stack,
   TextField,
+  Tooltip,
   Typography
 } from "@mui/material";
 import { useMemo, useState } from "react";
@@ -149,16 +150,24 @@ export default function ProjectsPage() {
                     Archive
                   </Button>
                 )}
-                <Button
-                  size="small"
-                  color="error"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setConfirmDelete({ id: project.id, key: project.key });
-                  }}
+                <Tooltip
+                  title={project.status !== "ARCHIVED" ? "Archive project before deleting" : "Move to trash"}
+                  arrow
                 >
-                  Delete
-                </Button>
+                  <span>
+                    <Button
+                      size="small"
+                      color="error"
+                      disabled={project.status !== "ARCHIVED"}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setConfirmDelete({ id: project.id, key: project.key });
+                      }}
+                    >
+                      Delete
+                    </Button>
+                  </span>
+                </Tooltip>
               </Box>
             </CardContent>
           </Card>
@@ -206,16 +215,19 @@ export default function ProjectsPage() {
       </Dialog>
 
       <Dialog open={Boolean(confirmDelete)} onClose={() => setConfirmDelete(null)}>
-        <DialogTitle>Delete project?</DialogTitle>
+        <DialogTitle>Move project to trash?</DialogTitle>
         <DialogContent>
           <Typography>
-            {confirmDelete ? `Project ${confirmDelete.key} will be permanently deleted.` : ""}
+            {confirmDelete ? `Project "${confirmDelete.key}" will be moved to trash.` : ""}
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Items in trash are automatically deleted after 30 days. You can restore them before then.
           </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmDelete(null)}>Cancel</Button>
           <Button color="error" variant="contained" onClick={handleDelete} disabled={deleteProject.isPending}>
-            Delete
+            Confirm Delete
           </Button>
         </DialogActions>
       </Dialog>

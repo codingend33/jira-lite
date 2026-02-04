@@ -146,4 +146,76 @@ public class TicketEntity {
     public void setUpdatedAt(OffsetDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    // --- Soft Delete Fields ---
+
+    @Column(name = "deleted_at")
+    private OffsetDateTime deletedAt;
+
+    @Column(name = "deleted_by")
+    private UUID deletedBy;
+
+    @Column(name = "purge_after")
+    private OffsetDateTime purgeAfter;
+
+    @Column(name = "deleted_reason")
+    private String deletedReason;
+
+    @Column(name = "restored_at")
+    private OffsetDateTime restoredAt;
+
+    @Column(name = "restored_by")
+    private UUID restoredBy;
+
+    public OffsetDateTime getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(OffsetDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
+
+    public UUID getDeletedBy() {
+        return deletedBy;
+    }
+
+    public void setDeletedBy(UUID deletedBy) {
+        this.deletedBy = deletedBy;
+    }
+
+    public OffsetDateTime getPurgeAfter() {
+        return purgeAfter;
+    }
+
+    public void setPurgeAfter(OffsetDateTime purgeAfter) {
+        this.purgeAfter = purgeAfter;
+    }
+
+    public String getDeletedReason() {
+        return deletedReason;
+    }
+
+    public void setDeletedReason(String deletedReason) {
+        this.deletedReason = deletedReason;
+    }
+
+    public OffsetDateTime getRestoredAt() {
+        return restoredAt;
+    }
+
+    public void setRestoredAt(OffsetDateTime restoredAt) {
+        this.restoredAt = restoredAt;
+    }
+
+    public UUID getRestoredBy() {
+        return restoredBy;
+    }
+
+    public void setRestoredBy(UUID restoredBy) {
+        this.restoredBy = restoredBy;
+    }
+
+    public boolean isDeleted() {
+        return deletedAt != null;
+    }
 }

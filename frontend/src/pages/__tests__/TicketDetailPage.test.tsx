@@ -116,7 +116,7 @@ describe("TicketDetailPage", () => {
     vi.mocked(useNotify).mockReturnValue({ notifySuccess, notifyError: vi.fn() } as any);
 
     render(<TicketDetailPage />, { wrapper });
-    fireEvent.click(screen.getByRole("button", { name: /Delete/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Delete attachment/i }));
     await waitFor(() => expect(deleteAsync).toHaveBeenCalledWith("att1"));
     expect(notifySuccess).toHaveBeenCalled();
   });

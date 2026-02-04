@@ -1,6 +1,7 @@
-import { Avatar, Button, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { Avatar, Button, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography, Select, MenuItem, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from "@mui/material";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { listMembersAdmin, removeMember } from "../api/members";
+import { listMembersAdmin, removeMember, updateMember } from "../api/members";
 import { getProfile, getAvatarUrl } from "../api/profile";
 import ErrorBanner from "../components/ErrorBanner";
 import { useNotify } from "../components/Notifications";
@@ -32,6 +33,36 @@ export default function SettingsMembersPage() {
     onError: () => notifyError("Failed to remove member")
   });
 
+  const updateMutation = useMutation({
+    mutationFn: (data: { userId: string; role: string }) => updateMember(data.userId, { role: data.role }),
+    onSuccess: () => {
+      notifySuccess("Member role updated");
+      queryClient.invalidateQueries({ queryKey: ["members-admin"] });
+    },
+    onError: () => notifyError("Failed to update member role")
+  });
+
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingRoleChange, setPendingRoleChange] = useState<{ userId: string; role: string; name: string } | null>(null);
+
+  const handleRoleChangeRequest = (userId: string, role: string, name: string) => {
+    setPendingRoleChange({ userId, role, name });
+    setConfirmOpen(true);
+  };
+
+  const confirmRoleChange = () => {
+    if (pendingRoleChange) {
+      updateMutation.mutate({ userId: pendingRoleChange.userId, role: pendingRoleChange.role });
+      setPendingRoleChange(null);
+      setConfirmOpen(false);
+    }
+  };
+
+  const cancelRoleChange = () => {
+    setPendingRoleChange(null);
+    setConfirmOpen(false);
+  };
+
   return (
     <Stack spacing={3}>
       <Typography variant="h4" fontWeight={700}>
@@ -50,25 +81,36 @@ export default function SettingsMembersPage() {
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
-            <TableBody>
-              {(membersQuery.data ?? []).map((m) => (
-                <TableRow key={m.userId}>
-                  <TableCell>
-                    <Avatar
-                      src={
-                        m.avatarUrl
-                          ? m.avatarUrl
-                          : m.userId === profileQuery.data?.id
+          <TableBody>
+            {(membersQuery.data ?? []).map((m) => (
+              <TableRow key={m.userId}>
+                <TableCell>
+                  <Avatar
+                    src={
+                      m.avatarUrl
+                        ? m.avatarUrl
+                        : m.userId === profileQuery.data?.id
                           ? avatarQuery.data ?? undefined
                           : undefined
-                      }
-                    >
-                      {(m.displayName || m.email || "?")[0]}
-                    </Avatar>
-                  </TableCell>
+                    }
+                  >
+                    {(m.displayName || m.email || "?")[0]}
+                  </Avatar>
+                </TableCell>
                 <TableCell>{m.displayName || "—"}</TableCell>
                 <TableCell>{m.email || "—"}</TableCell>
-                <TableCell>{m.role}</TableCell>
+                <TableCell>
+                  <Select
+                    size="small"
+                    value={m.role}
+                    onChange={(e) => handleRoleChangeRequest(m.userId, e.target.value, m.displayName || m.email || "User")}
+                    disabled={updateMutation.isPending || m.userId === profileQuery.data?.id}
+                    sx={{ minWidth: 120 }}
+                  >
+                    <MenuItem value="ADMIN">ADMIN</MenuItem>
+                    <MenuItem value="MEMBER">MEMBER</MenuItem>
+                  </Select>
+                </TableCell>
                 <TableCell>{m.status}</TableCell>
                 <TableCell align="right">
                   {m.role !== "ADMIN" && (
@@ -86,6 +128,23 @@ export default function SettingsMembersPage() {
           </TableBody>
         </Table>
       </Paper>
-    </Stack>
+
+
+      {/* Confirmation Dialog */}
+      <Dialog open={confirmOpen} onClose={cancelRoleChange}>
+        <DialogTitle>Confirm Role Change</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to change the role of <b>{pendingRoleChange?.name}</b> to <b>{pendingRoleChange?.role}</b>?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={cancelRoleChange}>Cancel</Button>
+          <Button onClick={confirmRoleChange} autoFocus variant="contained">
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Stack >
   );
 }

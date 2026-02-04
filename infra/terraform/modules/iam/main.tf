@@ -244,7 +244,8 @@ resource "aws_iam_role_policy" "ec2_cognito" {
       Action = [
         "cognito-idp:AdminUpdateUserAttributes",
         "cognito-idp:AdminGetUser",
-        "cognito-idp:AdminAddUserToGroup"
+        "cognito-idp:AdminAddUserToGroup",
+        "cognito-idp:AdminRemoveUserFromGroup"
       ]
       Resource = "*"
     }]

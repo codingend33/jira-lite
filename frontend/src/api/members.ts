@@ -12,3 +12,7 @@ export async function listMembersAdmin(): Promise<Member[]> {
 export async function removeMember(userId: string): Promise<void> {
   await apiRequest(`/org/members/${userId}`, { method: "DELETE" });
 }
+
+export async function updateMember(userId: string, data: { role?: string; status?: string }): Promise<void> {
+  await apiRequest(`/org/members/${userId}`, { method: "PATCH", body: JSON.stringify(data) });
+}

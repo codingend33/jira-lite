@@ -4,18 +4,21 @@ import java.util.Map;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Simple wrapper for Google Gemini polish endpoint.
  */
 @Service
 public class AiService {
+
+    private static final Logger log = LoggerFactory.getLogger(AiService.class);
 
     private final RestClient restClient;
     private final String apiKey;
@@ -36,39 +39,48 @@ public class AiService {
             return fallback(rawText);
         }
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
             var body = Map.of(
-                    "contents", new Object[]{
-                            Map.of("parts", new Object[]{Map.of("text",
-                                    "Rewrite the following ticket into structured markdown with Title, Description, Acceptance Criteria:\n" + rawText)})
+                    "contents", new Object[] {
+                            Map.of("parts", new Object[] { Map.of("text",
+                                    "Rewrite the following ticket into structured markdown with Title, Description, Acceptance Criteria:\n"
+                                            + rawText) })
                     });
             ResponseEntity<Map> response = restClient.post()
                     .uri(uriBuilder -> uriBuilder
                             .path("/v1beta/models/{model}:generateContent")
                             .queryParam("key", apiKey)
                             .build(model))
-                    .body(new HttpEntity<>(body, headers))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
                     .retrieve()
                     .toEntity(Map.class);
+            log.info("Gemini API response body: {}", response.getBody());
             String text = extractText(response.getBody());
+            log.info("Extracted text from Gemini: {}", text == null ? "NULL"
+                    : (text.isBlank() ? "BLANK" : text.substring(0, Math.min(100, text.length()))));
             return text == null || text.isBlank() ? fallback(rawText) : text;
         } catch (Exception ex) {
+            log.error("Gemini API call failed: {} - {}", ex.getClass().getSimpleName(), ex.getMessage());
             return fallback(rawText);
         }
     }
 
     @SuppressWarnings("unchecked")
     private String extractText(Map body) {
-        if (body == null) return null;
+        if (body == null)
+            return null;
         Object candidatesObj = body.get("candidates");
-        if (!(candidatesObj instanceof List<?> candidates) || candidates.isEmpty()) return null;
+        if (!(candidatesObj instanceof List<?> candidates) || candidates.isEmpty())
+            return null;
         Object first = candidates.get(0);
-        if (!(first instanceof Map<?, ?> candidate)) return null;
+        if (!(first instanceof Map<?, ?> candidate))
+            return null;
         Object content = candidate.get("content");
-        if (!(content instanceof Map<?, ?> contentMap)) return null;
+        if (!(content instanceof Map<?, ?> contentMap))
+            return null;
         Object partsObj = contentMap.get("parts");
-        if (!(partsObj instanceof List<?> parts) || parts.isEmpty()) return null;
+        if (!(partsObj instanceof List<?> parts) || parts.isEmpty())
+            return null;
         Object p0 = parts.get(0);
         if (p0 instanceof Map<?, ?> pMap) {
             Object text = pMap.get("text");

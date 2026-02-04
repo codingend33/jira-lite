@@ -94,4 +94,28 @@ public class TicketsController {
             @Valid @RequestBody TransitionTicketRequest request) {
         return ResponseEntity.ok(ticketService.transition(ticketId, request));
     }
+
+    @PostMapping("/{ticketId}/delete")
+    @PreAuthorize("hasAnyRole('ADMIN','MEMBER')")
+    @Operation(summary = "Soft delete ticket (move to trash, ADMIN or creator)")
+    public ResponseEntity<Void> deleteTicket(
+            @PathVariable UUID ticketId,
+            @RequestParam(required = false) String reason) {
+        ticketService.softDeleteTicket(ticketId, reason);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{ticketId}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Restore ticket from trash (ADMIN only)")
+    public ResponseEntity<TicketResponse> restoreTicket(@PathVariable UUID ticketId) {
+        return ResponseEntity.ok(ticketService.restoreTicket(ticketId));
+    }
+
+    @GetMapping("/trash")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "List tickets in trash (ADMIN only)")
+    public ResponseEntity<List<TicketResponse>> listTrashTickets() {
+        return ResponseEntity.ok(ticketService.listTrashTickets());
+    }
 }

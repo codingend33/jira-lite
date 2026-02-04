@@ -122,11 +122,15 @@ jobs:
             docker stop jira-backend || true
             docker rm jira-backend || true
             
-            # Run new container
+            # Run new container with CloudWatch logging
             docker run -d \
               --name jira-backend \
               --restart unless-stopped \
               -p 8080:8080 \
+              --log-driver=awslogs \
+              --log-opt awslogs-region=${{ env.AWS_REGION }} \
+              --log-opt awslogs-group=/aws/ec2/jira-lite-prod-backend \
+              --log-opt awslogs-stream=jira-backend \
               --env-file /home/${{ env.EC2_USER }}/.env \
               ${{ env.ECR_REPOSITORY }}:latest
             

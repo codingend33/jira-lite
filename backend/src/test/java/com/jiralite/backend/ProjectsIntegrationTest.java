@@ -144,11 +144,19 @@ class ProjectsIntegrationTest {
 
     @Test
     void admin_can_delete_project() throws Exception {
+        // must archive before deletion
+        mockMvc.perform(post("/projects/{projectId}/archive", PROJECT_1)
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk());
+
         mockMvc.perform(delete("/projects/{projectId}", PROJECT_1)
                         .header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isNoContent());
 
-        assertThat(projectRepository.findById(PROJECT_1)).isEmpty();
+        assertThat(projectRepository.findById(PROJECT_1))
+                .get()
+                .extracting(ProjectEntity::getDeletedAt)
+                .isNotNull();
     }
 
     @Test

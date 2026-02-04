@@ -17,4 +17,6 @@ public interface OrgMembershipRepository extends JpaRepository<OrgMembershipEnti
     Optional<OrgMembershipEntity> findByIdOrgIdAndIdUserId(UUID orgId, UUID userId);
 
     long countByIdOrgId(UUID orgId);
+
+    long countByIdOrgIdAndRole(UUID orgId, String role);
 }

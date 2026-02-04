@@ -23,7 +23,6 @@ import com.jiralite.backend.entity.UserEntity;
 import com.jiralite.backend.exception.ApiException;
 import com.jiralite.backend.repository.OrgMembershipRepository;
 import com.jiralite.backend.repository.UserRepository;
-import com.jiralite.backend.service.S3PresignService;
 import com.jiralite.backend.security.tenant.TenantContext;
 import com.jiralite.backend.security.tenant.TenantContextHolder;
 
@@ -37,13 +36,16 @@ public class OrgMemberService {
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final S3PresignService s3PresignService;
+    private final CognitoService cognitoService;
 
     public OrgMemberService(OrgMembershipRepository membershipRepository, UserRepository userRepository,
-            NotificationService notificationService, S3PresignService s3PresignService) {
+            NotificationService notificationService, S3PresignService s3PresignService,
+            CognitoService cognitoService) {
         this.membershipRepository = membershipRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
         this.s3PresignService = s3PresignService;
+        this.cognitoService = cognitoService;
     }
 
     @Transactional(readOnly = true)
@@ -77,6 +79,12 @@ public class OrgMemberService {
         membership.setUpdatedAt(OffsetDateTime.now());
 
         OrgMembershipEntity saved = membershipRepository.save(membership);
+
+        // Sync to Cognito (default to Member group if role is MEMBER)
+        if (user.getCognitoSub() != null) {
+            cognitoService.updateUserGroup(user.getCognitoSub(), "", membership.getRole());
+        }
+
         notifyUser(user.getId(), "ORG_MEMBER_ADDED", "You were added to the organization");
         return toResponse(saved, user);
     }
@@ -89,16 +97,36 @@ public class OrgMemberService {
         }
 
         OrgMembershipEntity membership = getMembership(userId);
-        if (request.getRole() != null) {
+        String oldRole = membership.getRole();
+
+        // Validate Role Change
+        if (request.getRole() != null && !request.getRole().equals(oldRole)) {
+            // Check Last Admin Protection
+            if ("ADMIN".equals(oldRole) && !"ADMIN".equals(request.getRole())) {
+                long adminCount = membershipRepository.countByIdOrgIdAndRole(getOrgId(), "ADMIN");
+                if (adminCount <= 1) {
+                    throw new ApiException(ErrorCode.BAD_REQUEST, "Cannot downgrade the only administrator",
+                            HttpStatus.BAD_REQUEST.value());
+                }
+            }
             membership.setRole(request.getRole());
         }
+
         if (request.getStatus() != null) {
             membership.setStatus(request.getStatus());
         }
         membership.setUpdatedAt(OffsetDateTime.now());
 
         UserEntity user = userRepository.findById(userId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found", HttpStatus.NOT_FOUND.value()));
+                .orElseThrow(
+                        () -> new ApiException(ErrorCode.NOT_FOUND, "User not found", HttpStatus.NOT_FOUND.value()));
+
+        // Sync to Cognito if role changed
+        if (request.getRole() != null && !request.getRole().equals(oldRole) && user.getCognitoSub() != null) {
+            cognitoService.updateUserGroup(user.getCognitoSub(), oldRole, request.getRole());
+            // Invalidate existing sessions so new role takes effect immediately
+            cognitoService.globalSignOut(user.getCognitoSub());
+        }
 
         notifyUser(user.getId(), "ORG_MEMBER_UPDATED", "Your organization role/status changed");
         return toResponse(membership, user);
@@ -109,13 +137,31 @@ public class OrgMemberService {
     public void deleteMember(UUID userId) {
         OrgMembershipEntity membership = getMembership(userId);
         ensureAdmin();
+
+        // Check Last Admin Protection
+        if ("ADMIN".equals(membership.getRole())) {
+            long adminCount = membershipRepository.countByIdOrgIdAndRole(getOrgId(), "ADMIN");
+            if (adminCount <= 1) {
+                throw new ApiException(ErrorCode.BAD_REQUEST, "Cannot remove the only administrator",
+                        HttpStatus.BAD_REQUEST.value());
+            }
+        }
+
         membershipRepository.delete(membership);
+
+        // Sync Cognito
+        UserEntity user = userRepository.findById(userId).orElse(null);
+        if (user != null && user.getCognitoSub() != null) {
+            cognitoService.removeUserFromOrg(user.getCognitoSub());
+        }
+
         notifyUser(userId, "ORG_REMOVED", "You have been removed from the organization");
     }
 
     private void ensureAdmin() {
         TenantContext context = TenantContextHolder.getRequired();
-        if (context.roles() == null || context.roles().stream().noneMatch(r -> r.equals("ADMIN") || r.equals("ROLE_ADMIN"))) {
+        if (context.roles() == null
+                || context.roles().stream().noneMatch(r -> r.equals("ADMIN") || r.equals("ROLE_ADMIN"))) {
             throw new ApiException(ErrorCode.FORBIDDEN, "Admin only", HttpStatus.FORBIDDEN.value());
         }
     }
@@ -134,19 +180,23 @@ public class OrgMemberService {
 
     private OrgMembershipEntity getMembership(UUID userId) {
         UUID orgId = getOrgId();
-        // Ensure caller is admin (controller already @PreAuthorize, double-check optional)
+        // Ensure caller is admin (controller already @PreAuthorize, but good to have
+        // safety)
         return membershipRepository.findByIdOrgIdAndIdUserId(orgId, userId)
-                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Membership not found", HttpStatus.NOT_FOUND.value()));
+                .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "Membership not found",
+                        HttpStatus.NOT_FOUND.value()));
     }
 
     private UserEntity resolveUser(CreateMemberRequest request) {
         if (request.getUserId() != null) {
             return userRepository.findById(request.getUserId())
-                    .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found", HttpStatus.NOT_FOUND.value()));
+                    .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found",
+                            HttpStatus.NOT_FOUND.value()));
         }
         if (request.getEmail() != null && !request.getEmail().isBlank()) {
             return userRepository.findByEmail(request.getEmail())
-                    .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found", HttpStatus.NOT_FOUND.value()));
+                    .orElseThrow(() -> new ApiException(ErrorCode.NOT_FOUND, "User not found",
+                            HttpStatus.NOT_FOUND.value()));
         }
         throw new ApiException(ErrorCode.BAD_REQUEST, "userId or email is required", HttpStatus.BAD_REQUEST.value());
     }
