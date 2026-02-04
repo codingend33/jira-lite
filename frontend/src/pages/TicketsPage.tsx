@@ -17,6 +17,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
 import PaginationControls from "../components/PaginationControls";
+import { useAuth } from "../auth/AuthContext";
 import { useProjects } from "../query/projectQueries";
 import { useTickets, useSearchTickets } from "../query/ticketQueries";
 import { useOrgMembers } from "../query/memberQueries";
@@ -27,8 +28,10 @@ const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"];
 export default function TicketsPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { state } = useAuth();
   const initialProjectId = searchParams.get("projectId") ?? "";
   const keyword = searchParams.get("keyword") ?? "";
+  const assignedTo = searchParams.get("assignedTo") ?? "";
   const [filters, setFilters] = useState({
     status: "",
     priority: "",
@@ -38,8 +41,8 @@ export default function TicketsPage() {
     sort: "createdAt,desc"
   });
 
-  const projectsQuery = useProjects();
   const membersQuery = useOrgMembers();
+  const projectsQuery = useProjects();
   const searchQuery = useSearchTickets(keyword);
   const listQuery = useTickets({
     status: filters.status || undefined,
@@ -51,9 +54,12 @@ export default function TicketsPage() {
   });
 
   const isSearching = keyword.trim().length > 0;
-  const tickets = isSearching
+  const baseTickets = isSearching
     ? (searchQuery.data as any[] | undefined) ?? []
     : (listQuery.data?.content ?? []);
+  const myUserId = state.profile?.sub || state.profile?.email;
+  const isMyTickets = assignedTo === "me" && myUserId;
+  const tickets = isMyTickets ? baseTickets.filter((t) => t.assigneeId === myUserId) : baseTickets;
 
   const projectOptions = useMemo(() => projectsQuery.data ?? [], [projectsQuery.data]);
   const memberLookup = useMemo(() => {
@@ -64,6 +70,13 @@ export default function TicketsPage() {
     }
     return map;
   }, [membersQuery.data]);
+  const projectLookup = useMemo(() => {
+    const map = new Map<string, { key: string; name: string }>();
+    for (const proj of projectsQuery.data ?? []) {
+      map.set(proj.id, { key: proj.key, name: proj.name });
+    }
+    return map;
+  }, [projectsQuery.data]);
 
   useEffect(() => {
     const projectId = searchParams.get("projectId");
@@ -174,12 +187,25 @@ export default function TicketsPage() {
               <Typography variant="body2" color="text.secondary">
                 {ticket.description || "No description"}
               </Typography>
-              <Box sx={{ display: "flex", gap: 1 }}>
+              <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
                 <Chip size="small" label={ticket.priority} />
-                <Chip size="small" label={`Project ${ticket.projectId.slice(0, 8)}`} />
+                <Chip
+                  size="small"
+                  label={`Project ${
+                    projectLookup.get(ticket.projectId)?.key ??
+                    projectLookup.get(ticket.projectId)?.name ??
+                    ticket.projectId.slice(0, 8)
+                  }`}
+                />
                 <Chip
                   size="small"
                   label={`Assignee ${ticket.assigneeId ? memberLookup.get(ticket.assigneeId) ?? ticket.assigneeId : "Unassigned"}`}
+                />
+                <Chip
+                  size="small"
+                  color="default"
+                  variant="filled"
+                  label={`Creator ${memberLookup.get(ticket.createdBy ?? "") ?? ticket.createdBy ?? "Unknown"}`}
                 />
               </Box>
             </CardContent>
@@ -187,7 +213,7 @@ export default function TicketsPage() {
         ))}
       </Stack>
 
-      {!isSearching && (
+      {!isSearching && !isMyTickets && (
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <PaginationControls
             page={listQuery.data?.page.number ?? 0}

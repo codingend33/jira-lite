@@ -25,17 +25,20 @@ function renderWithProviders(ui: React.ReactElement) {
 describe("DashboardPage", () => {
   it("renders metrics and activity stream", async () => {
     apiRequest.mockResolvedValue({ activeProjects: 3, myTickets: 4, members: 5 });
-    listAuditLogs.mockResolvedValue([
-      {
-        id: "1",
-        action: "PROJECT_CREATE",
-        details: "P1 created",
-        entityType: "PROJECT",
-        entityId: "p1",
-        actorUserId: "u1",
-        createdAt: new Date().toISOString()
-      }
-    ]);
+    listAuditLogs.mockResolvedValue({
+      content: [
+        {
+          id: "1",
+          action: "PROJECT_CREATE",
+          details: "P1 created",
+          entityType: "PROJECT",
+          entityId: "p1",
+          actorUserId: "u1",
+          createdAt: new Date().toISOString()
+        }
+      ],
+      page: { number: 0, size: 20, totalElements: 1, totalPages: 1 }
+    });
 
     renderWithProviders(<DashboardPage />);
 

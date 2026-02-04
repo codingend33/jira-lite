@@ -23,6 +23,7 @@ import com.jiralite.backend.entity.UserEntity;
 import com.jiralite.backend.exception.ApiException;
 import com.jiralite.backend.repository.OrgMembershipRepository;
 import com.jiralite.backend.repository.UserRepository;
+import com.jiralite.backend.service.S3PresignService;
 import com.jiralite.backend.security.tenant.TenantContext;
 import com.jiralite.backend.security.tenant.TenantContextHolder;
 
@@ -35,12 +36,14 @@ public class OrgMemberService {
     private final OrgMembershipRepository membershipRepository;
     private final UserRepository userRepository;
     private final NotificationService notificationService;
+    private final S3PresignService s3PresignService;
 
     public OrgMemberService(OrgMembershipRepository membershipRepository, UserRepository userRepository,
-            NotificationService notificationService) {
+            NotificationService notificationService, S3PresignService s3PresignService) {
         this.membershipRepository = membershipRepository;
         this.userRepository = userRepository;
         this.notificationService = notificationService;
+        this.s3PresignService = s3PresignService;
     }
 
     @Transactional(readOnly = true)
@@ -163,11 +166,16 @@ public class OrgMemberService {
     private MemberResponse toResponse(OrgMembershipEntity membership, UserEntity user) {
         String email = user != null ? user.getEmail() : null;
         String displayName = user != null ? user.getDisplayName() : null;
+        String avatarUrl = null;
+        if (user != null && user.getAvatarS3Key() != null && !user.getAvatarS3Key().isBlank()) {
+            avatarUrl = s3PresignService.presignDownload(user.getAvatarS3Key(), null, null).url().toString();
+        }
         return new MemberResponse(
                 membership.getId().getUserId(),
                 email,
                 displayName,
                 membership.getRole(),
-                membership.getStatus());
+                membership.getStatus(),
+                avatarUrl);
     }
 }

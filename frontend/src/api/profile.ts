@@ -35,3 +35,12 @@ export async function presignAvatar(fileName: string, contentType: string) {
     { method: "GET" }
   );
 }
+
+export async function getAvatarUrl(): Promise<string | null> {
+  try {
+    const res = await apiRequest<{ url: string }>("/users/me/avatar-url", { method: "GET" });
+    return res.url;
+  } catch {
+    return null;
+  }
+}

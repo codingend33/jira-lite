@@ -17,6 +17,8 @@ import com.jiralite.backend.audit.LogAudit;
 import com.jiralite.backend.exception.ApiException;
 import com.jiralite.backend.repository.TicketCommentRepository;
 import com.jiralite.backend.repository.TicketRepository;
+import com.jiralite.backend.repository.AuditLogRepository;
+import com.jiralite.backend.entity.AuditLogEntity;
 import com.jiralite.backend.security.tenant.TenantContext;
 import com.jiralite.backend.security.tenant.TenantContextHolder;
 
@@ -29,14 +31,17 @@ public class TicketCommentService {
     private final TicketRepository ticketRepository;
     private final TicketCommentRepository commentRepository;
     private final NotificationService notificationService;
+    private final AuditLogRepository auditLogRepository;
 
     public TicketCommentService(
             TicketRepository ticketRepository,
             TicketCommentRepository commentRepository,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            AuditLogRepository auditLogRepository) {
         this.ticketRepository = ticketRepository;
         this.commentRepository = commentRepository;
         this.notificationService = notificationService;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @Transactional(readOnly = true)
@@ -65,14 +70,20 @@ public class TicketCommentService {
 
         TicketCommentEntity saved = commentRepository.save(comment);
         notifyAssignee(ticket, "COMMENT_CREATED", "New comment on " + ticket.getTicketKey());
+        writeAudit("COMMENT_CREATE", ticket, saved.getId().toString(),
+                "Comment added to ticket " + ticket.getTicketKey());
         return toResponse(saved);
     }
 
     private void notifyAssignee(TicketEntity ticket, String type, String content) {
         UUID assignee = ticket.getAssigneeId();
+        UUID reporter = ticket.getCreatedBy();
         UUID author = parseUuidOrNull(getUserId());
-        if (assignee != null && !assignee.equals(author)) {
+        if (assignee != null) {
             notificationService.createNotification(assignee, type, content);
+        }
+        if (reporter != null && (assignee == null || !reporter.equals(assignee))) {
+            notificationService.createNotification(reporter, type, content);
         }
     }
 
@@ -104,6 +115,23 @@ public class TicketCommentService {
             return UUID.fromString(value);
         } catch (IllegalArgumentException ex) {
             return null;
+        }
+    }
+
+    private void writeAudit(String action, TicketEntity ticket, String entityId, String details) {
+        try {
+            TenantContext ctx = TenantContextHolder.getRequired();
+            AuditLogEntity log = new AuditLogEntity();
+            log.setId(UUID.randomUUID());
+            log.setTenantId(UUID.fromString(ctx.orgId()));
+            log.setActorUserId(parseUuidOrNull(ctx.userId()));
+            log.setAction(action);
+            log.setEntityType("COMMENT");
+            log.setEntityId(entityId);
+            log.setDetails("Ticket " + ticket.getTicketKey() + ": " + details);
+            log.setCreatedAt(OffsetDateTime.now());
+            auditLogRepository.save(log);
+        } catch (Exception ignored) {
         }
     }
 

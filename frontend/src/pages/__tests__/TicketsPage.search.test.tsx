@@ -3,9 +3,13 @@ import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi } from "vitest";
 import TicketsPage from "../TicketsPage";
+import * as projectQueries from "../../query/projectQueries";
 
+vi.mock("../../auth/AuthContext", () => ({
+  useAuth: () => ({ state: { profile: { email: "me@test.com" } }, isAuthenticated: true })
+}));
 vi.mock("../../query/projectQueries", () => ({
-  useProjects: () => ({ data: [] })
+  useProjects: vi.fn()
 }));
 vi.mock("../../query/memberQueries", () => ({
   useOrgMembers: () => ({ data: [] })
@@ -37,6 +41,7 @@ function renderWith(keyword: string) {
 
 describe("TicketsPage search mode", () => {
   it("renders search results without pagination", async () => {
+    vi.mocked(projectQueries.useProjects).mockReturnValue({ data: [] } as any);
     renderWith("bug");
     await waitFor(() => expect(screen.getByText(/Match bug/)).toBeInTheDocument());
     expect(screen.queryByText(/page/i)).not.toBeInTheDocument();

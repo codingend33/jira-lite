@@ -15,6 +15,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 
 import com.jiralite.backend.entity.NotificationEntity;
 import com.jiralite.backend.repository.NotificationRepository;
@@ -52,7 +54,7 @@ class NotificationServiceTest {
         ArgumentCaptor<NotificationEntity> captor = ArgumentCaptor.forClass(NotificationEntity.class);
         verify(notificationRepository).save(captor.capture());
         NotificationEntity saved = captor.getValue();
-        assertThat(saved.getTenantId()).isEqualTo(orgId.toString());
+        assertThat(saved.getTenantId()).isEqualTo(orgId);
         assertThat(saved.getUserId()).isEqualTo(userId);
         assertThat(saved.getType()).isEqualTo("TYPE");
         assertThat(saved.getContent()).isEqualTo("hello");
@@ -63,10 +65,14 @@ class NotificationServiceTest {
 
     @Test
     void listForCurrentUser_queriesRepositoryWithContext() {
-        notificationService.listForCurrentUser();
+        PageRequest pr = PageRequest.of(0, 50);
+        when(notificationRepository.findByTenantIdAndUserIdOrderByCreatedAtDesc(orgId, userId, pr))
+                .thenReturn(Page.empty());
+
+        notificationService.listForCurrentUser(pr);
 
         verify(notificationRepository)
-                .findTop50ByTenantIdAndUserIdOrderByCreatedAtDesc(orgId.toString(), userId);
+                .findByTenantIdAndUserIdOrderByCreatedAtDesc(orgId, userId, pr);
     }
 
     @Test
@@ -74,7 +80,8 @@ class NotificationServiceTest {
         UUID notificationId = UUID.randomUUID();
         NotificationEntity entity = new NotificationEntity();
         entity.setIsRead(false);
-        when(notificationRepository.findById(notificationId)).thenReturn(Optional.of(entity));
+        when(notificationRepository.findByIdAndTenantIdAndUserId(notificationId, orgId, userId))
+                .thenReturn(Optional.of(entity));
 
         notificationService.markRead(notificationId);
 

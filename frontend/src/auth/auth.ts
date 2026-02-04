@@ -14,11 +14,13 @@ export async function buildAuthorizeUrl(identityProvider?: string, state?: strin
   const challenge = await generateChallenge(verifier);
   sessionStorage.setItem(verifierKey, verifier);
 
+  const scopes = ["openid", "email", "profile", "aws.cognito.signin.user.admin"];
+
   const params = new URLSearchParams({
     response_type: "code",
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: "openid email profile",
+    scope: scopes.join(" "),
     code_challenge_method: "S256",
     code_challenge: challenge
   });

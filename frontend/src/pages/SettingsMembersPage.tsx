@@ -1,6 +1,7 @@
 import { Avatar, Button, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { listMembersAdmin, removeMember } from "../api/members";
+import { getProfile, getAvatarUrl } from "../api/profile";
 import ErrorBanner from "../components/ErrorBanner";
 import { useNotify } from "../components/Notifications";
 
@@ -11,6 +12,15 @@ export default function SettingsMembersPage() {
   const membersQuery = useQuery({
     queryKey: ["members-admin"],
     queryFn: () => listMembersAdmin()
+  });
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => getProfile()
+  });
+  const avatarQuery = useQuery({
+    queryKey: ["profile", "avatar-url"],
+    queryFn: () => getAvatarUrl(),
+    enabled: Boolean(profileQuery.data?.avatarS3Key)
   });
 
   const removeMutation = useMutation({
@@ -40,10 +50,22 @@ export default function SettingsMembersPage() {
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
-          <TableBody>
-            {(membersQuery.data ?? []).map((m) => (
-              <TableRow key={m.userId}>
-                <TableCell><Avatar>{(m.displayName || m.email || "?")[0]}</Avatar></TableCell>
+            <TableBody>
+              {(membersQuery.data ?? []).map((m) => (
+                <TableRow key={m.userId}>
+                  <TableCell>
+                    <Avatar
+                      src={
+                        m.avatarUrl
+                          ? m.avatarUrl
+                          : m.userId === profileQuery.data?.id
+                          ? avatarQuery.data ?? undefined
+                          : undefined
+                      }
+                    >
+                      {(m.displayName || m.email || "?")[0]}
+                    </Avatar>
+                  </TableCell>
                 <TableCell>{m.displayName || "—"}</TableCell>
                 <TableCell>{m.email || "—"}</TableCell>
                 <TableCell>{m.role}</TableCell>

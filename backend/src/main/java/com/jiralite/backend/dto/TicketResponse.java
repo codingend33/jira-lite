@@ -12,6 +12,7 @@ public record TicketResponse(
         String status,
         String priority,
         UUID assigneeId,
+        UUID createdBy,
         OffsetDateTime createdAt,
         OffsetDateTime updatedAt
 ) {

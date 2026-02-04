@@ -48,7 +48,13 @@ export function useUpdateTicket() {
       payload
     }: {
       id: string;
-      payload: { title?: string; description?: string; priority?: string; assigneeId?: string | null };
+      payload: {
+        title?: string;
+        description?: string;
+        priority?: string;
+        assigneeId?: string | null;
+        clearAssignee?: boolean;
+      };
     }) => updateTicket(id, payload),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ticketKeys.detail(variables.id) });

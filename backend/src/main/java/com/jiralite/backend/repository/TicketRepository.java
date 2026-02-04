@@ -18,6 +18,8 @@ public interface TicketRepository extends JpaRepository<TicketEntity, UUID>, Jpa
 
     long countByOrgIdAndAssigneeId(UUID orgId, UUID assigneeId);
 
+    boolean existsByOrgIdAndProjectId(UUID orgId, UUID projectId);
+
     @Query("select t from TicketEntity t where t.orgId = :orgId and " +
             "(lower(t.title) like lower(concat('%', :keyword, '%')) or lower(t.description) like lower(concat('%', :keyword, '%')))")
     List<TicketEntity> searchTickets(@Param("orgId") UUID orgId, @Param("keyword") String keyword);

@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
+import { CssBaseline, ThemeProvider, createTheme, GlobalStyles } from "@mui/material";
 
 type ThemeMode = "light" | "dark";
 
@@ -48,6 +48,14 @@ export function ThemeContextProvider({ children }: { children: React.ReactNode }
     <ThemeContext.Provider value={value}>
       <ThemeProvider theme={theme}>
         <CssBaseline />
+        <GlobalStyles
+          styles={{
+            body: {
+              backgroundColor: theme.palette.background.default,
+              color: theme.palette.text.primary
+            }
+          }}
+        />
         {children}
       </ThemeProvider>
     </ThemeContext.Provider>

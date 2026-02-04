@@ -19,7 +19,7 @@ public class NotificationEntity {
     private UUID userId;
 
     @Column(name = "tenant_id", nullable = false)
-    private String tenantId;
+    private UUID tenantId;
 
     @Column(nullable = false)
     private String type;
@@ -49,11 +49,11 @@ public class NotificationEntity {
         this.userId = userId;
     }
 
-    public String getTenantId() {
+    public UUID getTenantId() {
         return tenantId;
     }
 
-    public void setTenantId(String tenantId) {
+    public void setTenantId(UUID tenantId) {
         this.tenantId = tenantId;
     }
 

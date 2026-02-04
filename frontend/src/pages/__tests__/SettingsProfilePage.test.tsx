@@ -4,11 +4,14 @@ import { MemoryRouter } from "react-router-dom";
 import { vi } from "vitest";
 import SettingsProfilePage from "../SettingsProfilePage";
 
-vi.mock("../../api/profile", async () => {
+vi.mock("../../api/profile", async (orig) => {
+  const actual = await orig<typeof import("../../api/profile")>();
   return {
+    ...actual,
     getProfile: vi.fn(),
     updateProfile: vi.fn(),
-    presignAvatar: vi.fn()
+    presignAvatar: vi.fn(),
+    getAvatarUrl: vi.fn()
   };
 });
 
@@ -24,6 +27,7 @@ const profileApi = await import("../../api/profile");
 const getProfile = vi.mocked(profileApi.getProfile);
 const updateProfile = vi.mocked(profileApi.updateProfile);
 const presignAvatar = vi.mocked(profileApi.presignAvatar);
+const getAvatarUrl = vi.mocked(profileApi.getAvatarUrl);
 
 function renderPage() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
@@ -44,6 +48,7 @@ describe("SettingsProfilePage", () => {
       displayName: "Me",
       avatarS3Key: "avatars/u1.png"
     });
+    getAvatarUrl.mockResolvedValue("https://cdn.example.com/avatar.png");
   });
 
   afterEach(() => {
@@ -56,11 +61,10 @@ describe("SettingsProfilePage", () => {
 
     await screen.findByDisplayValue("Me");
     fireEvent.change(screen.getByLabelText(/Display Name/i), { target: { value: "NewMe" } });
-    fireEvent.change(screen.getByLabelText(/Avatar S3 Key/i), { target: { value: "avatars/new.png" } });
     fireEvent.click(screen.getByRole("button", { name: /save/i }));
 
     await waitFor(() => {
-      expect(updateProfile).toHaveBeenCalledWith({ displayName: "NewMe", avatarS3Key: "avatars/new.png" });
+      expect(updateProfile).toHaveBeenCalledWith({ displayName: "NewMe", avatarS3Key: "avatars/u1.png" });
     });
   });
 
@@ -81,6 +85,9 @@ describe("SettingsProfilePage", () => {
     fireEvent.change(input, { target: { files: [file] } });
 
     await waitFor(() => expect(presignAvatar).toHaveBeenCalled());
-    expect(screen.getByDisplayValue("avatars/u1/avatar.png")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /save/i }));
+    await waitFor(() =>
+      expect(updateProfile).toHaveBeenCalledWith({ displayName: "Me", avatarS3Key: "avatars/u1/avatar.png" })
+    );
   });
 });

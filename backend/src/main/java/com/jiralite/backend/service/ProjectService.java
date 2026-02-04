@@ -13,8 +13,11 @@ import com.jiralite.backend.dto.CreateProjectRequest;
 import com.jiralite.backend.dto.ErrorCode;
 import com.jiralite.backend.dto.ProjectResponse;
 import com.jiralite.backend.dto.UpdateProjectRequest;
+import com.jiralite.backend.entity.AuditLogEntity;
 import com.jiralite.backend.entity.ProjectEntity;
 import com.jiralite.backend.exception.ApiException;
+import com.jiralite.backend.repository.AuditLogRepository;
+import com.jiralite.backend.repository.TicketRepository;
 import com.jiralite.backend.repository.ProjectRepository;
 import com.jiralite.backend.security.tenant.TenantContext;
 import com.jiralite.backend.security.tenant.TenantContextHolder;
@@ -29,9 +32,15 @@ public class ProjectService {
     private static final String STATUS_ARCHIVED = "ARCHIVED";
 
     private final ProjectRepository projectRepository;
+    private final AuditLogRepository auditLogRepository;
+    private final TicketRepository ticketRepository;
 
-    public ProjectService(ProjectRepository projectRepository) {
+    public ProjectService(ProjectRepository projectRepository,
+            AuditLogRepository auditLogRepository,
+            TicketRepository ticketRepository) {
         this.projectRepository = projectRepository;
+        this.auditLogRepository = auditLogRepository;
+        this.ticketRepository = ticketRepository;
     }
 
     @Transactional(readOnly = true)
@@ -70,10 +79,13 @@ public class ProjectService {
         project.setName(request.getName());
         project.setDescription(request.getDescription());
         project.setStatus(STATUS_ACTIVE);
+        project.setCreatedBy(parseUuidOrNull(getUserId()));
         project.setCreatedAt(now);
         project.setUpdatedAt(now);
 
         ProjectEntity saved = projectRepository.save(project);
+        writeAudit("PROJECT_CREATE", saved.getProjectKey(),
+                "project %s created (name=%s)".formatted(saved.getProjectKey(), saved.getName()));
         return toResponse(saved);
     }
 
@@ -95,6 +107,7 @@ public class ProjectService {
         }
         project.setUpdatedAt(OffsetDateTime.now());
 
+        writeAudit("PROJECT_UPDATE", project.getProjectKey(), "project " + project.getProjectKey() + " updated");
         return toResponse(project);
     }
 
@@ -104,6 +117,7 @@ public class ProjectService {
         ProjectEntity project = findProject(projectId);
         project.setStatus(STATUS_ARCHIVED);
         project.setUpdatedAt(OffsetDateTime.now());
+        writeAudit("PROJECT_ARCHIVE", project.getProjectKey(), "project " + project.getProjectKey() + " archived");
         return toResponse(project);
     }
 
@@ -113,6 +127,7 @@ public class ProjectService {
         ProjectEntity project = findProject(projectId);
         project.setStatus(STATUS_ACTIVE);
         project.setUpdatedAt(OffsetDateTime.now());
+        writeAudit("PROJECT_UNARCHIVE", project.getProjectKey(), "project " + project.getProjectKey() + " unarchived");
         return toResponse(project);
     }
 
@@ -120,7 +135,19 @@ public class ProjectService {
     @LogAudit(action = "PROJECT_DELETE", entityType = "PROJECT")
     public void deleteProject(UUID projectId) {
         ProjectEntity project = findProject(projectId);
-        projectRepository.delete(project);
+        if (ticketRepository.existsByOrgIdAndProjectId(project.getOrgId(), project.getId())) {
+            throw new ApiException(ErrorCode.BAD_REQUEST,
+                    "Project has tickets. Delete/transfer tickets first or archive the project.",
+                    HttpStatus.BAD_REQUEST.value());
+        }
+        try {
+            projectRepository.delete(project);
+            writeAudit("PROJECT_DELETE", project.getProjectKey(), "project " + project.getProjectKey() + " deleted");
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
+            throw new ApiException(ErrorCode.BAD_REQUEST,
+                    "Project has related tickets or data; delete tickets first or archive the project",
+                    HttpStatus.BAD_REQUEST.value());
+        }
     }
 
     private ProjectEntity findProject(UUID projectId) {
@@ -138,6 +165,28 @@ public class ProjectService {
         return UUID.fromString(context.orgId());
     }
 
+    private String getUserId() {
+        TenantContext context = TenantContextHolder.getRequired();
+        return context.userId();
+    }
+
+    private void writeAudit(String action, String entityId, String details) {
+        try {
+            TenantContext ctx = TenantContextHolder.getRequired();
+            AuditLogEntity log = new AuditLogEntity();
+            log.setId(UUID.randomUUID());
+            log.setTenantId(UUID.fromString(ctx.orgId()));
+            log.setActorUserId(ctx.userId() != null && !ctx.userId().isBlank() ? UUID.fromString(ctx.userId()) : null);
+            log.setAction(action);
+            log.setEntityType("PROJECT");
+            log.setEntityId(entityId);
+            log.setDetails(details);
+            log.setCreatedAt(OffsetDateTime.now());
+            auditLogRepository.save(log);
+        } catch (Exception ignored) {
+        }
+    }
+
     private ProjectResponse toResponse(ProjectEntity project) {
         return new ProjectResponse(
                 project.getId(),
@@ -145,7 +194,19 @@ public class ProjectService {
                 project.getName(),
                 project.getDescription(),
                 project.getStatus(),
+                project.getCreatedBy(),
                 project.getCreatedAt(),
                 project.getUpdatedAt());
+    }
+
+    private UUID parseUuidOrNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }

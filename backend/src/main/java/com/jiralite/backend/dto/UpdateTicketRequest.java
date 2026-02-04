@@ -11,6 +11,9 @@ public class UpdateTicketRequest {
     private String priority;
 
     private UUID assigneeId;
+    
+    // When true, assignee will be cleared even if assigneeId is null.
+    private Boolean clearAssignee;
 
     public String getTitle() {
         return title;
@@ -42,5 +45,13 @@ public class UpdateTicketRequest {
 
     public void setAssigneeId(UUID assigneeId) {
         this.assigneeId = assigneeId;
+    }
+
+    public Boolean getClearAssignee() {
+        return clearAssignee;
+    }
+
+    public void setClearAssignee(Boolean clearAssignee) {
+        this.clearAssignee = clearAssignee;
     }
 }

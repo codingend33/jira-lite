@@ -85,7 +85,8 @@ export default function TicketFormPage({ mode }: Props) {
         title: form.title,
         description: form.description || undefined,
         priority: form.priority,
-        assigneeId: form.assigneeId || undefined
+        assigneeId: form.assigneeId || undefined,
+        clearAssignee: form.assigneeId === ""
       }
     });
     notifySuccess("Ticket updated");

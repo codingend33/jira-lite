@@ -7,6 +7,7 @@ import * as ticketQueries from "../../query/ticketQueries";
 import * as attachmentQueries from "../../query/attachmentQueries";
 import * as commentQueries from "../../query/commentQueries";
 import * as memberQueries from "../../query/memberQueries";
+import * as projectQueries from "../../query/projectQueries";
 import { useNotify } from "../../components/Notifications";
 
 vi.mock("../../query/ticketQueries");
@@ -23,6 +24,9 @@ vi.mock("../../query/commentQueries", () => ({
 }));
 vi.mock("../../query/memberQueries", () => ({
   useOrgMembers: vi.fn()
+}));
+vi.mock("../../query/projectQueries", () => ({
+  useProjects: vi.fn()
 }));
 
 const wrapper = ({ children }: { children: React.ReactNode }) => {
@@ -54,6 +58,7 @@ describe("TicketDetailPage", () => {
     vi.mocked(attachmentQueries.useUploadAttachment).mockReturnValue({ mutateAsync: vi.fn(), error: null } as any);
     vi.mocked(useNotify).mockReturnValue({ notifySuccess: vi.fn(), notifyError: vi.fn() } as any);
     vi.mocked(memberQueries.useOrgMembers).mockReturnValue({ data: [], isLoading: false, error: null } as any);
+    vi.mocked(projectQueries.useProjects).mockReturnValue({ data: [], isLoading: false, error: null } as any);
     vi.mocked(commentQueries.useComments).mockReturnValue({ data: [], isLoading: false, error: null } as any);
     vi.mocked(commentQueries.useCreateComment).mockReturnValue({ mutateAsync: vi.fn(), isPending: false, error: null } as any);
     vi.mocked(ticketQueries.useTransitionTicket).mockReturnValue({
