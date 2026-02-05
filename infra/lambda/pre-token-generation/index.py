@@ -15,22 +15,6 @@ DB_NAME = os.environ['DB_NAME']
 DB_USER = os.environ['DB_USER']
 DB_PASSWORD = os.environ['DB_PASSWORD']
 
-# Connection pool (reused across invocations)
-conn = None
-
-def get_connection():
-    """Get or create database connection"""
-    global conn
-    if conn is None or conn.closed:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            database=DB_NAME,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            connect_timeout=5
-        )
-    return conn
-
 def query_user_membership(user_id):
     """
     Query user's org_id and role from database.
@@ -39,9 +23,16 @@ def query_user_membership(user_id):
     Returns:
         dict with 'org_id' and 'role', or None if not found
     """
+    conn = None
     try:
-        connection = get_connection()
-        with connection.cursor(cursor_factory=RealDictCursor) as cursor:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            database=DB_NAME,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            connect_timeout=5
+        )
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
             # Find first ACTIVE organization membership for user
             # Note: user_id in org_memberships IS the Cognito sub (UUID)
             cursor.execute("""
@@ -69,6 +60,12 @@ def query_user_membership(user_id):
             "user_id": user_id
         }))
         return None
+    finally:
+        if conn:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
 def handler(event, context):
     """

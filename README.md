@@ -46,7 +46,7 @@ Full local runbook: `docs/runbooks/local-dev.md`
 
 ## AWS Deployment (Production)
 
-> **📘 完整部署指南**: [docs/runbooks/getting-started-aws.md](docs/runbooks/getting-started-aws.md)
+Full guide: [docs/runbooks/getting-started-aws.md](docs/runbooks/getting-started-aws.md)
 
 ### Architecture
 
@@ -114,26 +114,29 @@ terraform init && terraform apply
 - Day 10: AWS Infrastructure (Terraform) + Production Deployment
 - Day 11: User Invitation Flow (Lambda Triggers + Email)
 - Day 12: Frontend Polish (Toasts, Error Boundary, Loading States)
-- Day 13: Engineering Excellence (72% Backend Coverage, 51% Frontend Coverage, CI/CD Hardening)
+- Day 13: Engineering Excellence (coverage + CI/CD hardening)
+- Day 14: Notifications SSE, audit feed, “My tickets” filter, avatars polishing
+- Day 15: Deletion strategy (trash UX, member read-only), token refresh flow, Cognito pre-token Lambda DB-connection fix
 
 ## Tests
 
 ```bash
 # Windows
 .\mvnw.cmd test
-.\mvnw.cmd verify  # Generates JaCoCo coverage report
+.\mvnw.cmd verify -DrunTestcontainers=true  # Generates JaCoCo coverage with Testcontainers
 ```
 
 Frontend (Vitest):
 
 ```bash
 cd frontend
-npm run test       # Run unit/component tests
+npm run test                 # Run unit/component tests
+npm run test -- --coverage   # With coverage
 ```
 
-**Current Coverage (Day 13):**
-- Backend: ~72% (Instruction), ~60% (Branch)
-- Frontend: ~51% (Statement)
+**Current Coverage (latest):**
+- Backend: run `.\mvnw.cmd verify -DrunTestcontainers=true` (JaCoCo)
+- Frontend: run `npm run test -- --coverage` (Vitest + RTL)
 
 Optional Testcontainers (Docker required):
 
