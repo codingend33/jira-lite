@@ -27,6 +27,10 @@ export default function App() {
       navigate("/login", { replace: true });
     };
     const handleForbidden = () => {
+      const path = window.location.pathname;
+      if (path.startsWith("/trash") || path.startsWith("/settings/members")) {
+        return;
+      }
       notifyError("You don't have permission to perform this action.");
     };
     window.addEventListener("api:auth-failed", handleAuthFailed);

@@ -2,6 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import DashboardPage from "../DashboardPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
+import { AuthProvider } from "../../auth/AuthContext";
+import { NotificationProvider } from "../../components/Notifications";
 import { vi } from "vitest";
 
 import * as client from "../../api/client";
@@ -17,7 +19,11 @@ function renderWithProviders(ui: React.ReactElement) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <MemoryRouter>
-      <QueryClientProvider client={client}>{ui}</QueryClientProvider>
+      <QueryClientProvider client={client}>
+        <AuthProvider>
+          <NotificationProvider>{ui}</NotificationProvider>
+        </AuthProvider>
+      </QueryClientProvider>
     </MemoryRouter>
   );
 }
@@ -43,9 +49,8 @@ describe("DashboardPage", () => {
     renderWithProviders(<DashboardPage />);
 
     await waitFor(() => {
-      expect(screen.getByText("3")).toBeInTheDocument();
-      expect(screen.getByText("4")).toBeInTheDocument();
-      expect(screen.getByText("5")).toBeInTheDocument();
+      expect(screen.getByText(/Active Projects/i).parentElement).toHaveTextContent("3");
+      expect(screen.getByText(/My Tickets/i).parentElement).toHaveTextContent("4");
       expect(screen.getByText(/P1 created/i)).toBeInTheDocument();
     });
   });

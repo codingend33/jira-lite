@@ -52,7 +52,7 @@ public class TrashController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','MEMBER')")
     @Operation(summary = "List all items in trash (projects and tickets)")
     public ResponseEntity<List<TrashItemResponse>> listTrash(
             @RequestParam(required = false, defaultValue = "all") String type) {

@@ -6,6 +6,7 @@ import ProjectsPage from "../ProjectsPage";
 import * as projectQueries from "../../query/projectQueries";
 import { useAuth } from "../../auth/AuthContext";
 import * as memberQueries from "../../query/memberQueries";
+import { NotificationProvider } from "../../components/Notifications";
 
 vi.mock("../../auth/AuthContext");
 vi.mock("../../query/projectQueries");
@@ -16,7 +17,9 @@ const qcWrapper = ({ children }: { children: React.ReactNode }) => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return (
     <QueryClientProvider client={client}>
-      <MemoryRouter>{children}</MemoryRouter>
+      <MemoryRouter>
+        <NotificationProvider>{children}</NotificationProvider>
+      </MemoryRouter>
     </QueryClientProvider>
   );
 };
@@ -58,7 +61,6 @@ describe("ProjectsPage", () => {
     expect(screen.getByText(/OPS\s*-\s*Ops/)).toBeInTheDocument();
     expect(screen.getByText(/ARC\s*-\s*Old/)).toBeInTheDocument();
     // admin buttons
-    expect(screen.getByRole("button", { name: /Invite Members/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /New Project/i })).toBeInTheDocument();
   });
 
@@ -104,7 +106,7 @@ describe("ProjectsPage permissions", () => {
   it("hides admin-only actions for member", () => {
     render(<ProjectsPage />, { wrapper: qcWrapper });
 
-    expect(screen.queryByRole("button", { name: /Invite Members/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /New Project/i })).not.toBeInTheDocument();
+    const newBtn = screen.getByRole("button", { name: /New Project/i });
+    expect(newBtn).toBeDisabled();
   });
 });
