@@ -5,15 +5,23 @@ import { listMembersAdmin, removeMember, updateMember } from "../api/members";
 import { getProfile, getAvatarUrl } from "../api/profile";
 import ErrorBanner from "../components/ErrorBanner";
 import { useNotify } from "../components/Notifications";
+import { useOrgMembers } from "../query/memberQueries";
+import { useAuth } from "../auth/AuthContext";
+import InviteMembersModal from "../components/InviteMembersModal";
 
 export default function SettingsMembersPage() {
   const queryClient = useQueryClient();
   const { notifySuccess, notifyError } = useNotify();
+  const { state: authState } = useAuth();
+  const isAdmin = authState.profile?.["cognito:groups"]?.some((g: string) => g.toUpperCase() === "ADMIN");
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const membersQuery = useQuery({
     queryKey: ["members-admin"],
-    queryFn: () => listMembersAdmin()
+    queryFn: () => listMembersAdmin(),
+    enabled: isAdmin
   });
+  const membersLiteQuery = useOrgMembers();
   const profileQuery = useQuery({
     queryKey: ["profile"],
     queryFn: () => getProfile()
@@ -63,12 +71,26 @@ export default function SettingsMembersPage() {
     setConfirmOpen(false);
   };
 
+  const memberRows = (isAdmin ? membersQuery.data : membersLiteQuery.data) ?? [];
+
   return (
     <Stack spacing={3}>
-      <Typography variant="h4" fontWeight={700}>
-        Members
-      </Typography>
-      <ErrorBanner error={membersQuery.error || removeMutation.error} />
+      <Stack direction="row" justifyContent="space-between" alignItems="center">
+        <Typography variant="h4" fontWeight={700}>
+          Members
+        </Typography>
+        {isAdmin && (
+          <Button variant="contained" onClick={() => setInviteOpen(true)}>
+            Invite Members
+          </Button>
+        )}
+      </Stack>
+      <ErrorBanner error={(isAdmin ? membersQuery.error : membersLiteQuery.error) || removeMutation.error} />
+      {!isAdmin && (
+        <Typography variant="body2" color="text.secondary">
+          View only: contact an admin to change roles or invite/remove members.
+        </Typography>
+      )}
       <Paper sx={{ p: 2 }}>
         <Table>
           <TableHead>
@@ -82,7 +104,7 @@ export default function SettingsMembersPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {(membersQuery.data ?? []).map((m) => (
+            {memberRows.map((m) => (
               <TableRow key={m.userId}>
                 <TableCell>
                   <Avatar
@@ -104,7 +126,7 @@ export default function SettingsMembersPage() {
                     size="small"
                     value={m.role}
                     onChange={(e) => handleRoleChangeRequest(m.userId, e.target.value, m.displayName || m.email || "User")}
-                    disabled={updateMutation.isPending || m.userId === profileQuery.data?.id}
+                    disabled={!isAdmin || updateMutation.isPending || m.userId === profileQuery.data?.id}
                     sx={{ minWidth: 120 }}
                   >
                     <MenuItem value="ADMIN">ADMIN</MenuItem>
@@ -116,8 +138,8 @@ export default function SettingsMembersPage() {
                   {m.role !== "ADMIN" && (
                     <Button
                       color="error"
-                      onClick={() => removeMutation.mutate(m.userId)}
-                      disabled={removeMutation.isPending}
+                      onClick={() => (isAdmin ? removeMutation.mutate(m.userId) : notifyError("No permission"))}
+                      disabled={!isAdmin || removeMutation.isPending}
                     >
                       Remove
                     </Button>
@@ -128,7 +150,7 @@ export default function SettingsMembersPage() {
           </TableBody>
         </Table>
       </Paper>
-
+      <InviteMembersModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
       {/* Confirmation Dialog */}
       <Dialog open={confirmOpen} onClose={cancelRoleChange}>

@@ -139,12 +139,14 @@ export default function DashboardPage() {
             }}
             onClick={() => navigate(m.to)}
           >
-            <Typography variant="subtitle2" color="text.secondary">
-              {m.title}
-            </Typography>
-            <Typography variant="h5" fontWeight={700}>
-              {m.value}
-            </Typography>
+            <Box onClick={() => navigate(m.to)}>
+              <Typography variant="subtitle2" color="text.secondary">
+                {m.title}
+              </Typography>
+              <Typography variant="h5" fontWeight={700}>
+                {m.value}
+              </Typography>
+            </Box>
           </Paper>
         ))}
       </Stack>

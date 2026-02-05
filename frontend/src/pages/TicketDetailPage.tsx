@@ -29,6 +29,7 @@ import { useTicket, useTransitionTicket } from "../query/ticketQueries";
 import { useOrgMembers } from "../query/memberQueries";
 import { useProjects } from "../query/projectQueries";
 import { useSoftDeleteTicket } from "../query/trashQueries";
+import { useAuth } from "../auth/AuthContext";
 import {
   Dialog,
   DialogActions,
@@ -42,7 +43,9 @@ export default function TicketDetailPage() {
   const params = useParams();
   const ticketId = params.ticketId ?? "";
   const navigate = useNavigate();
-  const { notifySuccess } = useNotify();
+  const { notifySuccess, notifyError } = useNotify();
+  const { state: authState } = useAuth();
+  const isAdmin = authState.profile?.["cognito:groups"]?.includes("ADMIN") ?? false;
 
   const ticketQuery = useTicket(ticketId);
   const transitionTicket = useTransitionTicket();
@@ -61,9 +64,18 @@ export default function TicketDetailPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const handleDeleteTicket = async () => {
-    await softDeleteTicket.mutateAsync({ id: ticketId });
-    notifySuccess("Ticket moved to trash");
-    navigate("/tickets");
+    const isCreator = authState.profile?.sub && authState.profile.sub === ticketQuery.data?.createdBy;
+    if (!isAdmin && !isCreator) {
+      notifyError("You don't have permission to delete this ticket");
+      return;
+    }
+    try {
+      await softDeleteTicket.mutateAsync({ id: ticketId });
+      notifySuccess("Ticket moved to trash");
+      navigate("/tickets");
+    } catch {
+      notifyError("You don't have permission to delete this ticket");
+    }
   };
 
 
@@ -132,6 +144,9 @@ export default function TicketDetailPage() {
     return null;
   }
 
+  const isCreator = authState.profile?.sub && authState.profile.sub === ticket.createdBy;
+  const canDeleteTicket = isAdmin || isCreator;
+
   return (
     <Stack spacing={3}>
       <ErrorBanner
@@ -155,9 +170,11 @@ export default function TicketDetailPage() {
           <Button variant="outlined" onClick={() => navigate(`/tickets/${ticketId}/edit`)}>
             Edit Ticket
           </Button>
-          <Button variant="outlined" color="error" onClick={() => setConfirmDelete(true)}>
-            Delete
-          </Button>
+          {canDeleteTicket && (
+            <Button variant="outlined" color="error" onClick={() => setConfirmDelete(true)}>
+              Delete
+            </Button>
+          )}
         </Stack>
       </Box>
 

@@ -9,6 +9,7 @@ import * as commentQueries from "../../query/commentQueries";
 import * as memberQueries from "../../query/memberQueries";
 import * as projectQueries from "../../query/projectQueries";
 import { useNotify } from "../../components/Notifications";
+import { AuthProvider } from "../../auth/AuthContext";
 
 vi.mock("../../query/ticketQueries");
 vi.mock("../../components/Notifications");
@@ -34,9 +35,11 @@ const wrapper = ({ children }: { children: React.ReactNode }) => {
   return (
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={["/tickets/1"]}>
-        <Routes>
-          <Route path="/tickets/:ticketId" element={children} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/tickets/:ticketId" element={children} />
+          </Routes>
+        </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>
   );

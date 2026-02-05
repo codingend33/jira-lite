@@ -16,8 +16,8 @@ import {
 import { useMemo, useState } from "react";
 import ErrorBanner from "../components/ErrorBanner";
 import Loading from "../components/Loading";
-import InviteMembersModal from "../components/InviteMembersModal";
 import { useAuth } from "../auth/AuthContext";
+import { useNotify } from "../components/Notifications";
 import {
   useArchiveProject,
   useCreateProject,
@@ -31,12 +31,14 @@ import { useNavigate } from "react-router-dom";
 export default function ProjectsPage() {
   const navigate = useNavigate();
   const { state: authState } = useAuth();
+  const isAdmin = authState.profile?.["cognito:groups"]?.some((g: string) => g.toUpperCase() === "ADMIN");
   const projectsQuery = useProjects();
   const createProject = useCreateProject();
   const archiveProject = useArchiveProject();
   const unarchiveProject = useUnarchiveProject();
   const deleteProject = useDeleteProject();
   const membersQuery = useOrgMembers();
+  const { notifyError } = useNotify();
 
   const memberLookup = useMemo(() => {
     const map = new Map<string, string>();
@@ -48,7 +50,6 @@ export default function ProjectsPage() {
   }, [membersQuery.data]);
 
   const [open, setOpen] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);
   const [form, setForm] = useState({ key: "", name: "", description: "" });
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; key: string } | null>(null);
 
@@ -87,25 +88,20 @@ export default function ProjectsPage() {
   return (
     <Stack spacing={3}>
       <ErrorBanner error={mutationError} />
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          Projects
-        </Typography>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            Projects
+          </Typography>
         <Box sx={{ display: "flex", gap: 1 }}>
-          {authState.profile?.["cognito:groups"]?.includes("ADMIN") && (
-            <Button variant="outlined" onClick={() => setInviteOpen(true)}>
-              Invite Members
-            </Button>
-          )}
-          {authState.profile?.["cognito:groups"]?.includes("ADMIN") && (
-            <Button variant="contained" onClick={() => setOpen(true)}>
-              New Project
-            </Button>
-          )}
+          <Button
+            variant="contained"
+            disabled={!isAdmin}
+            onClick={() => (isAdmin ? setOpen(true) : notifyError("No permission"))}
+          >
+            New Project
+          </Button>
         </Box>
       </Box>
-
-      <InviteMembersModal open={inviteOpen} onClose={() => setInviteOpen(false)} />
 
       <Stack spacing={2}>
         {projectsQuery.data?.map((project) => (
@@ -134,6 +130,7 @@ export default function ProjectsPage() {
                     size="small"
                     onClick={(event) => {
                       event.stopPropagation();
+                      if (!isAdmin) return notifyError("No permission");
                       unarchiveProject.mutate(project.id);
                     }}
                   >
@@ -144,6 +141,7 @@ export default function ProjectsPage() {
                     size="small"
                     onClick={(event) => {
                       event.stopPropagation();
+                      if (!isAdmin) return notifyError("No permission");
                       archiveProject.mutate(project.id);
                     }}
                   >
@@ -151,7 +149,13 @@ export default function ProjectsPage() {
                   </Button>
                 )}
                 <Tooltip
-                  title={project.status !== "ARCHIVED" ? "Archive project before deleting" : "Move to trash"}
+                  title={
+                    !isAdmin
+                      ? "Admins only"
+                      : project.status !== "ARCHIVED"
+                      ? "Archive project before deleting"
+                      : "Move to trash"
+                  }
                   arrow
                 >
                   <span>
@@ -161,6 +165,7 @@ export default function ProjectsPage() {
                       disabled={project.status !== "ARCHIVED"}
                       onClick={(event) => {
                         event.stopPropagation();
+                        if (!isAdmin) return notifyError("No permission");
                         setConfirmDelete({ id: project.id, key: project.key });
                       }}
                     >

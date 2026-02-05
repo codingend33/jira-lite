@@ -1,4 +1,5 @@
-import { getAccessToken, clearTokens } from "../auth/storage";
+import { clearTokens, loadTokens, saveTokens } from "../auth/storage";
+import { refreshTokens } from "../auth/auth";
 import { ErrorResponse } from "./types";
 
 const baseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -30,7 +31,7 @@ export async function apiRequest<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getAccessToken();
+  const token = await ensureAccessToken();
   const headers = new Headers(options.headers ?? {});
   headers.set("Accept", "application/json");
   if (options.body && !headers.has("Content-Type")) {
@@ -66,6 +67,31 @@ export async function apiRequest<T>(
 
   const json = await parseJson(response);
   return json as T;
+}
+
+async function ensureAccessToken(): Promise<string | null> {
+  const tokens = loadTokens();
+  if (!tokens) return null;
+
+  const msRemaining = tokens.expiresAt * 1000 - Date.now();
+  // If still valid for >60s, use it
+  if (msRemaining > 60_000) {
+    return tokens.accessToken;
+  }
+
+  if (!tokens.refreshToken) {
+    clearTokens();
+    return null;
+  }
+
+  try {
+    const refreshed = await refreshTokens(tokens.refreshToken);
+    saveTokens(refreshed);
+    return refreshed.accessToken;
+  } catch {
+    clearTokens();
+    return null;
+  }
 }
 
 // Export apiClient helper for consistency

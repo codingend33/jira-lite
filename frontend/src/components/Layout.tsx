@@ -101,7 +101,7 @@ export default function Layout() {
     [memberMap]
   );
 
-  const summarize = (text: string, max = 90) => {
+  const summarize = (text: string, max = 60) => {
     if (text.length <= max) return text;
     return `${text.slice(0, max)}…`;
   };
@@ -132,7 +132,12 @@ export default function Layout() {
     }
   });
 
-  const menuItems = useMemo(() => notifications.slice(0, 10), [notifications]);
+  // Show only a small set of the most relevant notifications (prefer unread)
+  const menuItems = useMemo(() => {
+    const unreadOnly = notifications.filter((n: Notification) => !n.read && !n.isRead);
+    const list = unreadOnly.length > 0 ? unreadOnly : notifications;
+    return list.slice(0, 5);
+  }, [notifications]);
   const badgeCount = unread;
 
   const displayName = profileQuery.data?.displayName || state.profile?.email || state.profile?.sub || "";

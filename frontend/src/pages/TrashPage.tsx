@@ -21,6 +21,7 @@ import Loading from "../components/Loading";
 import { useTrash, useRestoreProject, useRestoreTicket } from "../query/trashQueries";
 import type { TrashItem } from "../api/trash";
 import { useAuth } from "../auth/AuthContext";
+import { ApiError } from "../api/client";
 
 export default function TrashPage() {
     const [filter, setFilter] = useState<"all" | "project" | "ticket">("all");
@@ -55,8 +56,9 @@ export default function TrashPage() {
         return <Loading />;
     }
 
-    const mutationError = trashQuery.error || restoreProject.error || restoreTicket.error;
-    const items = trashQuery.data ?? [];
+    const isForbidden = trashQuery.error instanceof ApiError && trashQuery.error.status === 403;
+    const mutationError = isForbidden ? null : trashQuery.error || restoreProject.error || restoreTicket.error;
+    const items = isForbidden ? [] : trashQuery.data ?? [];
 
     return (
         <Stack spacing={3}>
@@ -84,8 +86,17 @@ export default function TrashPage() {
             <Alert severity="info" icon={<Warning />}>
                 Items in trash will be permanently deleted after 30 days.
             </Alert>
+            {!isAdmin && (
+                <Alert severity="warning" sx={{ mt: 1 }}>
+                    Viewing only. Ask an admin to restore items.
+                </Alert>
+            )}
 
-            {items.length === 0 ? (
+            {isForbidden ? (
+                <Alert severity="warning">
+                    You currently do not have permission to view trash items. Ask an admin to grant read access or restore items for you.
+                </Alert>
+            ) : items.length === 0 ? (
                 <Box sx={{ textAlign: "center", py: 8 }}>
                     <Delete sx={{ fontSize: 64, color: "text.disabled", mb: 2 }} />
                     <Typography variant="h6" color="text.secondary">
@@ -129,7 +140,7 @@ export default function TrashPage() {
                                 </Typography>
 
                                 <Box sx={{ display: "flex", gap: 2, pt: 1 }}>
-                                    {isAdmin && (
+                                    {isAdmin ? (
                                         <Button
                                             size="small"
                                             variant="contained"
@@ -138,6 +149,10 @@ export default function TrashPage() {
                                         >
                                             Restore
                                         </Button>
+                                    ) : (
+                                        <Typography variant="caption" color="text.disabled">
+                                            View only (admins can restore)
+                                        </Typography>
                                     )}
                                 </Box>
                             </CardContent>

@@ -101,3 +101,37 @@ export function decodeJwt(token: string): JwtProfile {
     return {};
   }
 }
+
+export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    client_id: clientId,
+    refresh_token: refreshToken
+  });
+
+  const response = await fetch(`https://${domain}/oauth2/token`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: body.toString()
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to refresh token");
+  }
+
+  const payload = (await response.json()) as {
+    access_token: string;
+    id_token: string;
+    expires_in: number;
+    refresh_token?: string;
+  };
+
+  return {
+    accessToken: payload.access_token,
+    idToken: payload.id_token,
+    refreshToken: payload.refresh_token ?? refreshToken,
+    expiresAt: Math.floor(Date.now() / 1000) + payload.expires_in
+  };
+}
