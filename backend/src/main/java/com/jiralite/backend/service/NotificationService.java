@@ -60,7 +60,6 @@ public class NotificationService {
         });
     }
 
-    @Transactional(readOnly = true)
     public SseEmitter subscribeCurrentUser() {
         var ctx = TenantContextHolder.getRequired();
         UUID userId = UUID.fromString(ctx.userId());

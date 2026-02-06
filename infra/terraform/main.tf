@@ -97,6 +97,8 @@ module "compute" {
   cognito_user_pool_id    = var.cognito_user_pool_id
   attachments_bucket_name = module.s3_cdn.attachments_bucket_name
   allowed_origins         = "https://d1ad3a3b9ippri.cloudfront.net"
+  ai_gemini_api_key       = var.ai_gemini_api_key
+  ai_gemini_model         = var.ai_gemini_model
 }
 
 # CloudWatch Module

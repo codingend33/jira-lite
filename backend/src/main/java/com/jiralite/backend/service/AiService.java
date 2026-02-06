@@ -1,16 +1,22 @@
 package com.jiralite.backend.service;
 
-import java.util.Map;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.jiralite.backend.dto.ErrorCode;
+import com.jiralite.backend.exception.ApiException;
 
 /**
  * Simple wrapper for Google Gemini polish endpoint.
@@ -19,6 +25,10 @@ import org.slf4j.LoggerFactory;
 public class AiService {
 
     private static final Logger log = LoggerFactory.getLogger(AiService.class);
+    private static final List<String> MODEL_RETRY_ORDER = List.of(
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-1.5-flash");
 
     private final RestClient restClient;
     private final String apiKey;
@@ -26,7 +36,7 @@ public class AiService {
 
     public AiService(
             @Value("${ai.gemini.api-key:}") String apiKey,
-            @Value("${ai.gemini.model:gemini-pro}") String model) {
+            @Value("${ai.gemini.model:gemini-2.0-flash}") String model) {
         this.apiKey = apiKey;
         this.model = model;
         this.restClient = RestClient.builder()
@@ -36,33 +46,91 @@ public class AiService {
 
     public String polishTicket(String rawText) {
         if (apiKey == null || apiKey.isBlank()) {
-            return fallback(rawText);
+            throw new ApiException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "AI service is not configured",
+                    HttpStatus.INTERNAL_SERVER_ERROR.value());
         }
+
+        String prompt = "Rewrite the following ticket into concise markdown with exactly these sections:\n"
+                + "**Title:**\n"
+                + "**Description:**\n"
+                + "**Acceptance Criteria:**\n\n"
+                + "Ticket input:\n" + rawText;
         try {
-            var body = Map.of(
-                    "contents", new Object[] {
-                            Map.of("parts", new Object[] { Map.of("text",
-                                    "Rewrite the following ticket into structured markdown with Title, Description, Acceptance Criteria:\n"
-                                            + rawText) })
-                    });
-            ResponseEntity<Map> response = restClient.post()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/v1beta/models/{model}:generateContent")
-                            .queryParam("key", apiKey)
-                            .build(model))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .toEntity(Map.class);
-            log.info("Gemini API response body: {}", response.getBody());
-            String text = extractText(response.getBody());
-            log.info("Extracted text from Gemini: {}", text == null ? "NULL"
-                    : (text.isBlank() ? "BLANK" : text.substring(0, Math.min(100, text.length()))));
-            return text == null || text.isBlank() ? fallback(rawText) : text;
+            return callGemini(model, prompt);
+        } catch (ApiException ex) {
+            throw ex;
+        } catch (HttpStatusCodeException ex) {
+            if (ex.getStatusCode().value() == HttpStatus.NOT_FOUND.value()) {
+                return tryFallbackModels(prompt);
+            }
+            throw mapProviderException(ex);
         } catch (Exception ex) {
             log.error("Gemini API call failed: {} - {}", ex.getClass().getSimpleName(), ex.getMessage());
-            return fallback(rawText);
+            throw new ApiException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "AI polish failed, please retry",
+                    HttpStatus.BAD_GATEWAY.value());
         }
+    }
+
+    private String callGemini(String modelName, String prompt) {
+        var body = Map.of(
+                "contents", new Object[] {
+                        Map.of("parts", new Object[] { Map.of("text", prompt) })
+                });
+        ResponseEntity<Map> response = restClient.post()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/v1beta/models/{model}:generateContent")
+                        .queryParam("key", apiKey)
+                        .build(modelName))
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(body)
+                .retrieve()
+                .toEntity(Map.class);
+        log.info("Gemini API response body: {}", response.getBody());
+        String text = extractText(response.getBody());
+        log.info("Extracted text from Gemini: {}", text == null ? "NULL"
+                : (text.isBlank() ? "BLANK" : text.substring(0, Math.min(100, text.length()))));
+        if (text == null || text.isBlank()) {
+            throw new ApiException(
+                    ErrorCode.INTERNAL_ERROR,
+                    "AI service returned empty content",
+                    HttpStatus.BAD_GATEWAY.value());
+        }
+        return text;
+    }
+
+    private String tryFallbackModels(String prompt) {
+        log.warn("Configured Gemini model {} unavailable, trying fallback models", model);
+        for (String fallbackModel : MODEL_RETRY_ORDER) {
+            if (fallbackModel.equals(model)) {
+                continue;
+            }
+            try {
+                return callGemini(fallbackModel, prompt);
+            } catch (HttpStatusCodeException ex) {
+                log.warn("Fallback model {} failed with {} {}", fallbackModel, ex.getStatusCode().value(),
+                        ex.getStatusCode());
+                if (ex.getStatusCode().value() != HttpStatus.NOT_FOUND.value()) {
+                    throw mapProviderException(ex);
+                }
+            }
+        }
+        throw new ApiException(
+                ErrorCode.INTERNAL_ERROR,
+                "AI model is unavailable. Please update AI_GEMINI_MODEL.",
+                HttpStatus.BAD_GATEWAY.value());
+    }
+
+    private ApiException mapProviderException(HttpStatusCodeException ex) {
+        log.error("Gemini API call failed: {} {} - {}", ex.getStatusCode().value(), ex.getStatusCode(),
+                ex.getResponseBodyAsString());
+        return new ApiException(
+                ErrorCode.INTERNAL_ERROR,
+                "AI provider request failed: " + ex.getStatusCode().value(),
+                HttpStatus.BAD_GATEWAY.value());
     }
 
     @SuppressWarnings("unchecked")
@@ -81,24 +149,13 @@ public class AiService {
         Object partsObj = contentMap.get("parts");
         if (!(partsObj instanceof List<?> parts) || parts.isEmpty())
             return null;
-        Object p0 = parts.get(0);
-        if (p0 instanceof Map<?, ?> pMap) {
-            Object text = pMap.get("text");
-            return text != null ? text.toString() : null;
-        }
-        return null;
-    }
-
-    private String fallback(String rawText) {
-        return """
-                **Title:** %s
-                **Description:**
-                - %s
-
-                **Acceptance Criteria:**
-                - Clear reproduction steps
-                - Expected behaviour described
-                - Success is verifiable
-                """.formatted(rawText.length() > 60 ? rawText.substring(0, 60) + "..." : rawText, rawText);
+        return parts.stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .map(pMap -> pMap.get("text"))
+                .filter(text -> text != null && !text.toString().isBlank())
+                .map(Object::toString)
+                .collect(Collectors.joining("\n"))
+                .trim();
     }
 }
