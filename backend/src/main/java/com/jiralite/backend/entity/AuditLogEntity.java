@@ -30,7 +30,7 @@ public class AuditLogEntity {
     @Column(name = "entity_id")
     private String entityId;
 
-    @Column
+    @Column(columnDefinition = "TEXT")
     private String details;
 
     @Column(name = "created_at", nullable = false)

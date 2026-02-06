@@ -24,7 +24,7 @@ public class NotificationEntity {
     @Column(nullable = false)
     private String type;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     @Column(name = "is_read", nullable = false)

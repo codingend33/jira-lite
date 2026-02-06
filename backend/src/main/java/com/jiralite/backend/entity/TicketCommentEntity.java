@@ -27,7 +27,7 @@ public class TicketCommentEntity {
     @Column(name = "author_id")
     private UUID authorId;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String body;
 
     @Column(name = "created_at", nullable = false)
