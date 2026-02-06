@@ -103,6 +103,10 @@ FRONTEND_URL=https://d1ad3a3b9ippri.cloudfront.net
 APP_S3_BUCKET=${var.attachments_bucket_name}
 AWS_REGION=ap-southeast-2
 
+# AI (Gemini)
+AI_GEMINI_API_KEY=${var.ai_gemini_api_key}
+AI_GEMINI_MODEL=${var.ai_gemini_model}
+
 # Server
 SERVER_PORT=8080
 CORS_ALLOWED_ORIGINS=${var.allowed_origins}

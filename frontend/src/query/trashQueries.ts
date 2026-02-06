@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+    deleteTicket,
     listTrash,
     restoreProject,
     restoreTicket,
@@ -44,7 +45,7 @@ export function useRestoreTicket() {
 export function useSoftDeleteTicket() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, reason }: { id: string; reason?: string }) => import("../api/trash").then(m => m.deleteTicket(id, reason)),
+        mutationFn: ({ id, reason }: { id: string; reason?: string }) => deleteTicket(id, reason),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["tickets"] });
             queryClient.invalidateQueries({ queryKey: trashKeys.all });

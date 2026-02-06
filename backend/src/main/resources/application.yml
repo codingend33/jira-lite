@@ -37,7 +37,7 @@ aws:
 ai:
   gemini:
     api-key: ${AI_GEMINI_API_KEY:}
-    model: ${AI_GEMINI_MODEL:gemini-1.5-pro}
+    model: ${AI_GEMINI_MODEL:gemini-2.0-flash}
 
 # Note:
 # - Do not hardcode local DB settings here.

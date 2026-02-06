@@ -30,3 +30,10 @@ cognito_domain       = "your-cognito-domain"       # Your Cognito domain (withou
 # GitHub Configuration (for OIDC CI/CD)
 github_org  = "your-github-username"  # Your GitHub username or organization
 github_repo = "jira-lite"             # Your repository name
+
+# Billing alerts
+alert_email = "alerts@example.com"
+
+# Gemini AI (required for AI polish in production)
+ai_gemini_api_key = "REPLACE_WITH_GEMINI_API_KEY"
+ai_gemini_model   = "gemini-2.0-flash"

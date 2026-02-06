@@ -20,9 +20,10 @@ import { useOrgMembers } from "../query/memberQueries";
 import { useCreateTicket, useTicket, useUpdateTicket } from "../query/ticketQueries";
 import { useNotify } from "../components/Notifications";
 import SparklesIcon from "@mui/icons-material/AutoAwesome";
-import { apiRequest } from "../api/client";
+import { ApiError, apiRequest } from "../api/client";
 
 const PRIORITIES = ["LOW", "MEDIUM", "HIGH", "URGENT"];
+const POLISHED_MARKDOWN_PATTERN = /\*\*Title:\*\*[\s\S]*\*\*Acceptance Criteria:\*\*/i;
 
 type Props = {
   mode: "create" | "edit";
@@ -94,20 +95,31 @@ export default function TicketFormPage({ mode }: Props) {
   };
 
   const handleAiPolish = async () => {
+    const description = form.description.trim();
+    const title = form.title.trim();
+    const sourceText = POLISHED_MARKDOWN_PATTERN.test(description)
+      ? title
+      : (description || title);
+
+    if (!sourceText) {
+      notifyError("Please enter title or description first");
+      return;
+    }
+
     setAiLoading(true);
     try {
       const response = await apiRequest<{ result: string }>("/ai/polish", {
         method: "POST",
-        body: JSON.stringify({ text: form.description || form.title })
+        body: JSON.stringify({ text: sourceText })
       });
       if (response?.result) {
         setForm((f) => ({ ...f, description: response.result }));
         notifySuccess("Polished by AI");
       } else {
-        notifyError("AI polish failed");
+        notifyError("AI polish returned empty content");
       }
-    } catch {
-      notifyError("AI polish failed");
+    } catch (error) {
+      notifyError(error instanceof ApiError ? error.message : "AI polish failed");
     } finally {
       setAiLoading(false);
     }

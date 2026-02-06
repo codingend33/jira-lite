@@ -130,3 +130,17 @@ variable "alert_email" {
   description = "Email address for billing alerts"
   type        = string
 }
+
+# Gemini AI Configuration
+variable "ai_gemini_api_key" {
+  description = "Gemini API key for backend AI polish endpoint"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "ai_gemini_model" {
+  description = "Gemini model name used by backend"
+  type        = string
+  default     = "gemini-2.0-flash"
+}

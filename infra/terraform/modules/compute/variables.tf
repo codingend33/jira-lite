@@ -28,3 +28,16 @@ variable "allowed_origins" {
   description = "Comma-separated list of allowed CORS origins"
   default     = "*"
 }
+
+variable "ai_gemini_api_key" {
+  type        = string
+  description = "Gemini API key for backend AI polish"
+  sensitive   = true
+  default     = ""
+}
+
+variable "ai_gemini_model" {
+  type        = string
+  description = "Gemini model used by backend"
+  default     = "gemini-2.0-flash"
+}
