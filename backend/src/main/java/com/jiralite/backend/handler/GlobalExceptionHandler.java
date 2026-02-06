@@ -4,6 +4,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -115,6 +116,25 @@ public class GlobalExceptionHandler {
                                 .body(new ErrorResponse(
                                                 ErrorCode.BAD_REQUEST.name(),
                                                 ex.getMessage(),
+                                                MDC.get(MDC_KEY)));
+        }
+
+        /**
+         * Handles database integrity violations (e.g. value too long, unique constraint).
+         */
+        @ExceptionHandler(DataIntegrityViolationException.class)
+        public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+                String rawMessage = ex.getMostSpecificCause() != null
+                                ? ex.getMostSpecificCause().getMessage()
+                                : ex.getMessage();
+                String message = "Database constraint violation";
+                if (rawMessage != null && rawMessage.toLowerCase().contains("value too long")) {
+                        message = "One or more fields are too long";
+                }
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                                .body(new ErrorResponse(
+                                                ErrorCode.BAD_REQUEST.name(),
+                                                message,
                                                 MDC.get(MDC_KEY)));
         }
 
