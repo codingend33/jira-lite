@@ -1,176 +1,150 @@
-# AWS Deployment Getting Started Guide
+# AWS Deployment Getting Started
 
-This guide will walk you through setting up your AWS deployment from scratch.
+This guide is for first-time deployment of the current Jira Lite stack.
 
 ## Prerequisites
 
-Before interacting with the cloud, ensure you have:
-- ✅ AWS Account (Free Tier preferred)
-- ✅ Terraform >= 1.6.0 installed locally
-- ✅ AWS CLI v2 installed locally
-- ✅ GitHub Account with repository access
-- ✅ Local git repository pushed to GitHub
+- AWS account
+- Terraform >= 1.6
+- AWS CLI v2
+- GitHub repository admin access
+- Existing Cognito User Pool + App Client (this project expects existing Cognito values)
 
-## Step 1: Configure AWS CLI
-
-### 1.1 Install AWS CLI
-
-**Windows**:
-Download and install from: https://awscli.amazonaws.com/AWSCLIV2.msi
-
-**Verify**:
-```bash
-aws --version
-```
-
-### 1.2 Create IAM User (for local deployment)
-
-1. Log in to AWS Console -> **IAM** -> **Users** -> **Create user**
-2. Username: `terraform-deploy`
-3. Click **Next**
-4. Select **Attach policies directly**
-5. Add `AdministratorAccess` (recommended for first-time setup)
-6. Click **Create user**
-
-### 1.3 Create Access Keys
-
-1. Click on the user `terraform-deploy`
-2. Go to **Security credentials** tab
-3. **Access keys** -> **Create access key**
-4. Use case: **Command Line Interface (CLI)**
-5. **Important**: Copy Access Key ID and Secret Access Key immediately.
-
-### 1.4 Configure Local CLI
+## 1) Configure AWS CLI
 
 ```bash
 aws configure
-```
-
-Input:
-- AWS Access Key ID: <Your Key ID>
-- AWS Secret Access Key: <Your Secret Key>
-- Default region name: `ap-southeast-2`
-- Default output format: `json`
-
-Verify:
-```bash
 aws sts get-caller-identity
 ```
 
-## Step 2: Prepare Terraform Configuration
+Set region to `ap-southeast-2` unless your deployment uses another region.
 
-### 2.1 Get Account ID
-
-```bash
-aws sts get-caller-identity --query Account --output text
-```
-
-### 2.2 Create EC2 SSH Key Pair
-
-1. AWS Console -> **EC2** -> **Key Pairs** -> **Create key pair**
-2. Name: `jira-lite-prod-key`
-3. Type: **RSA**, Format: **.pem**
-4. Save the file securely (e.g., `~/.ssh/jira-lite-prod-key.pem`)
-
-### 2.3 Configure Variables
+## 2) Prepare Terraform Variables
 
 ```bash
 cd infra/terraform
 copy terraform.tfvars.example terraform.tfvars
 ```
 
-Edit `terraform.tfvars`:
+Edit `terraform.tfvars` and provide at minimum:
 
-```hcl
-aws_region   = "ap-southeast-2"
-project_name = "jira-lite"
-environment  = "prod"
+- `project_name`, `environment`
+- `ec2_key_name`
+- `rds_password`
+- unique bucket names
+- `cognito_user_pool_id`
+- `cognito_client_id`
+- `cognito_domain` (prefix only)
+- `github_org`, `github_repo`
 
-# EC2
-ec2_instance_type = "t4g.micro"
-ec2_key_name      = "jira-lite-prod-key"
-
-# RDS (Strong password required!)
-rds_password          = "YourSecurePassword123!@#"
-
-# S3 Buckets (Must be globally unique)
-attachments_bucket_name = "jira-lite-attachments-<YOUR_ACCOUNT_ID>"
-frontend_bucket_name    = "jira-lite-frontend-<YOUR_ACCOUNT_ID>"
-
-# GitHub
-github_org  = "your-username"
-github_repo = "jira-lite"
-```
-
-## Step 3: Initialize State Backend
+## 3) Bootstrap Terraform State Backend
 
 ```bash
-cd infra/scripts
-# Windows (Git Bash)
+cd ../scripts
 ./bootstrap-state.sh
 ```
 
-**Update `backend.tf`**:
-Edit `infra/terraform/backend.tf` and replace `<YOUR_ACCOUNT_ID>` with your actual AWS Account ID.
+Then update `infra/terraform/backend.tf` with the created S3 bucket and DynamoDB lock table.
 
-## Step 4: Deploy Infrastructure
+## 4) Deploy Infrastructure
 
 ```bash
-cd infra/terraform
+cd ../terraform
 terraform init
 terraform plan
 terraform apply
 ```
 
-Type `yes` to confirm. This takes ~10-15 minutes.
+Save outputs:
 
-**Save Outputs**:
 ```bash
-terraform output > outputs.txt
+terraform output
 ```
 
-## Step 5: Configure Cognito Trigger (Manual)
+Useful outputs:
 
-1. AWS Console -> **Cognito** -> **User Pools** -> Select Pool
-2. **Triggers** tab -> **Pre token generation**
-3. Select Lambda: `jira-lite-prod-pre-token-generation`
-4. Save changes.
+- `github_actions_role_arn`
+- `ecr_repository_url`
+- `ec2_public_ip`
+- `cloudfront_distribution_id`
+- `cloudfront_domain_name`
+- `cognito_auth_url`
 
-## Step 6: Configure GitHub Actions
+## 5) Configure Cognito Trigger
 
-### 6.1 Secrets (Settings -> Secrets and variables -> Actions)
+In Cognito User Pool:
 
-| Name | Value | Source |
-|------|-------|--------|
-| `AWS_ROLE_TO_ASSUME` | `arn:aws:iam::...` | `terraform output github_actions_role_arn` |
-| `EC2_SSH_KEY` | `-----BEGIN RSA...` | Content of your `.pem` file |
+- Triggers -> Pre token generation -> select deployed Lambda from Terraform outputs (`lambda_function_name`).
 
-### 6.2 Variables
+If you use separate environments (recommended), use separate User Pools and separate trigger Lambda configuration per environment.
 
-| Name | Value Example | Source |
-|------|---------------|--------|
-| `AWS_REGION` | `ap-southeast-2` | - |
-| `ECR_REPOSITORY` | `...dkr.ecr...` | `terraform output ecr_repository_url` |
-| `EC2_HOST` | `54.x.x.x` | `terraform output ec2_public_ip` |
-| `FRONTEND_BUCKET` | `jira-lite-frontend-...` | Your bucket name |
-| `CF_DIST_ID` | `E123...` | `terraform output cloudfront_distribution_id` |
-| `VITE_API_BASE_URL` | `http://<IP>:8080` | `terraform output ec2_public_ip` |
-| `VITE_COGNITO_DOMAIN` | `https://...` | `terraform output cognito_auth_url` |
-| `VITE_COGNITO_CLIENT_ID`| `1a2b...` | Your Client ID |
-| `VITE_COGNITO_REDIRECT_URI` | `https://<CDN>/callback` | Distribution domain + /callback |
-| `VITE_COGNITO_LOGOUT_URI` | `https://<CDN>/` | Distribution domain |
+## 6) Configure GitHub Actions
 
-## Step 7: Push to Deploy
+### GitHub Secrets
+
+- `AWS_ROLE_TO_ASSUME` = `terraform output github_actions_role_arn`
+- `EC2_SSH_KEY` = PEM private key content for EC2 access
+
+### GitHub Repository Variables
+
+Core:
+
+- `AWS_REGION` (for example `ap-southeast-2`)
+- `ECR_REPOSITORY` = `terraform output ecr_repository_url`
+- `EC2_HOST` = `terraform output ec2_public_ip`
+- `FRONTEND_BUCKET` = `terraform output frontend_bucket_name`
+- `CF_DIST_ID` = `terraform output cloudfront_distribution_id`
+
+Frontend runtime:
+
+- `VITE_API_BASE_URL` = `https://<cloudfront_domain>/api`
+- `VITE_COGNITO_DOMAIN` = `https://<cognito_domain>.auth.<region>.amazoncognito.com`
+- `VITE_COGNITO_CLIENT_ID` = Cognito app client id
+- `VITE_COGNITO_REDIRECT_URI` = `https://<cloudfront_domain>/login`
+- `VITE_COGNITO_LOGOUT_URI` = `https://<cloudfront_domain>/login`
+- `VITE_COGNITO_SCOPE` = `openid email profile` (or include admin scope if required by your flow)
+
+## 7) Trigger Deployment
+
+Push to `main`:
 
 ```bash
-git add .
-git commit -m "feat: complete infrastructure setup"
 git push origin main
 ```
 
-Check **GitHub -> Actions** to see your pipeline running!
+Expected:
 
-## Troubleshooting
+- Backend workflow runs `Test`, then `Build and Deploy` on main push.
+- Frontend workflow runs build/test and deploys static assets + invalidates CloudFront.
 
-See [ci-cd.md](ci-cd.md) for pipeline issues.
-See [terraform.md](terraform.md) for infrastructure issues.
+## 8) Post-Deploy Verification
+
+### API health
+
+```bash
+curl -i http://<EC2_PUBLIC_IP>:8080/api/health
+```
+
+### Frontend and API path routing
+
+- Frontend: `https://<cloudfront_domain>`
+- API via CloudFront: `https://<cloudfront_domain>/api/health`
+
+### Swagger (direct backend)
+
+- `http://<EC2_PUBLIC_IP>:8080/api/swagger-ui/index.html`
+
+## 9) Environment Isolation Recommendation
+
+For stable development and production consistency:
+
+- Dev: Dev User Pool + Dev DB + Dev trigger Lambda
+- Prod: Prod User Pool + Prod DB + Prod trigger Lambda
+
+Avoid mixing "local/dev DB" with "prod User Pool" to prevent role/org claim drift.
+
+## 10) Troubleshooting
+
+- CI stuck on expected checks: see `docs/runbooks/ci-cd.md`
+- Terraform issues/state locks: see `docs/runbooks/terraform.md`
+- Local/runtime API issues: see `docs/runbooks/local-dev.md`

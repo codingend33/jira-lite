@@ -38,19 +38,6 @@ Ticket list/detail/create/update/transition must always scope by `orgId` from
 Ticket comments and attachments must verify the ticket belongs to the current org.
 All reads/writes must include `orgId` from `TenantContextHolder`.
 
-### C4 Context
-
-```mermaid
-C4Context
-title org-members-admin
-Person(admin, "Admin User")
-System(be, "Backend")
-System_Ext(cognito, "AWS Cognito")
-Rel(admin, cognito, "Login")
-Rel(admin, be, "Manage org members")
-Rel(be, cognito, "Validate JWT + org_id")
-```
-
 ### Sequence
 
 ```mermaid
@@ -72,32 +59,4 @@ DB-->>SVC: Membership
 SVC->>DB: Update role/status
 DB-->>SVC: OK
 SVC-->>BE: Response
-```
-
-## Mermaid
-
-### C4 Context
-
-```mermaid
-C4Context
-title jira-lite tenancy context
-System(be, "Backend")
-System_Ext(cognito, "AWS Cognito")
-Rel(be, cognito, "Read org_id from JWT claims")
-```
-
-### Sequence
-
-```mermaid
-sequenceDiagram
-title tenant-context-flow
-participant SEC as Security
-participant TEN as TenantContextFilter
-participant SVC as Service
-participant REPO as Repository
-SEC-->>TEN: Authenticated JWT
-TEN->>TEN: Build TenantContext(orgId,userId,roles,traceId)
-TEN-->>SVC: Request handling
-SVC->>REPO: Query with orgId constraint
-TEN-->>TEN: Clear TenantContext + MDC
 ```
