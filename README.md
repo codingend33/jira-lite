@@ -1,105 +1,102 @@
 # Jira Lite
 
-Multi-tenant ticket system (portfolio project) for AU junior backend/full-stack roles.
+Multi-tenant ticketing system (portfolio project) targeting AU junior backend/full-stack roles.
 
 ## Tech Stack
 
-- Backend: Java 17, Spring Boot 3, Spring Security, JPA/Hibernate, Flyway, OpenAPI
-- Backend Tests: JUnit 5, Mockito, Testcontainers (PostgreSQL), ArchUnit
+- Backend: Java 17, Spring Boot 3, Spring Security, JPA/Hibernate, Flyway
+- Backend Tests: JUnit 5, Mockito, Testcontainers (PostgreSQL), ArchUnit, JaCoCo
 - Frontend: React + TypeScript, React Router, React Query, MUI, Vitest + RTL
-- AWS: Cognito, S3 (pre-signed), RDS Postgres, ECS Fargate, ALB, CloudWatch, ECR, CloudFront + S3
+- AWS: Cognito, Lambda (Pre Token Generation), RDS PostgreSQL, ECR, EC2 (Docker), CloudWatch, S3, CloudFront
 - IaC: Terraform
-- CI/CD: GitHub Actions (Branch Protection, PR Gates, Auto-Deploy)
+- CI/CD: GitHub Actions (PR checks + main-branch deploy)
 
-## Workflow
+## Current Scope
 
-Issues → Branch → PR → Review → Merge
+- Auth and RBAC with Cognito JWT (`ADMIN` / `MEMBER`)
+- Multi-tenant isolation by organization context
+- Projects, tickets, comments, and attachments
+- Notification center with SSE stream + unread/read APIs
+- Soft delete and trash workflow with role-aware UI behavior
+- Audit logging with traceable actions
 
 ## Quick Start (Local)
 
-Prereqs: Docker Desktop, Java 17
+Prerequisites: Docker Desktop, Java 17, Node.js 20+
+
+1. Start database
 
 ```bash
-cp .env.example .env
 docker compose up -d
+```
 
-# Windows
+2. Start backend (Windows PowerShell)
+
+```bash
 .\mvnw.cmd --% spring-boot:run -Dspring-boot.run.profiles=local
 ```
 
-Verify:
-
-```bash
-curl.exe -i http://localhost:8080/health
-```
-
-Frontend (Vite):
+3. Start frontend
 
 ```bash
 cd frontend
-cp .env.example .env.local
+copy .env.example .env.local
 npm install
 npm run dev
 ```
 
+4. Verify backend
+
+```bash
+curl.exe -i http://localhost:8080/api/health
+```
+
 Full local runbook: `docs/runbooks/local-dev.md`
+
+## CI/CD Summary
+
+- PR to `main`
+  - Backend: `Test`
+  - Frontend: `Build and Deploy` job runs lint/test/build only (no deploy)
+- Push/Merge to `main`
+  - Backend: `Test` then `Build and Deploy`
+  - Frontend: `Build and Deploy` (includes S3 sync + CloudFront invalidation)
+
+Detailed runbook: `docs/runbooks/ci-cd.md`
 
 ## AWS Deployment (Production)
 
-Full guide: [docs/runbooks/getting-started-aws.md](docs/runbooks/getting-started-aws.md)
+Architecture (current deployment target):
 
-### Architecture
+- Compute: EC2 t4g.micro running Docker container
+- Database: RDS PostgreSQL (private subnet)
+- Storage/CDN: S3 + CloudFront
+- Auth: Cognito User Pool + Pre Token Generation Lambda
+- CI/CD auth: GitHub OIDC role
 
-Deployed on AWS using Terraform (IaC):
-- **Compute**: EC2 t4g.micro (ARM) running Docker
-- **Database**: RDS PostgreSQL t4g.micro (private subnet)
-- **Storage**: S3 (attachments + frontend) + CloudFront CDN
-- **Auth**: Cognito User Pool + Lambda Pre Token Generation
-- **CI/CD**: GitHub Actions with OIDC authentication
-
-**Cost**: ~$0-5/month (Free Tier optimized)
-
-### Quick Deploy
-
-```bash
-# 1. Configure AWS CLI and create IAM user
-# 2. Bootstrap Terraform state
-cd infra/scripts && ./bootstrap-state.sh
-
-# 3. Configure and deploy
-cd ../terraform
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars
-terraform init && terraform apply
-
-# 4. Configure GitHub Secrets/Variables
-# 5. Push to main → auto deploy
-```
-
-**First time?** Follow the step-by-step guide: [getting-started-aws.md](docs/runbooks/getting-started-aws.md)
-
-### Access URLs (after deployment)
-
-- **Frontend**: `https://<cloudfront_domain>`
-- **Backend API**: `http://<ec2_ip>:8080`
-- **API Docs**: `http://<ec2_ip>:8080/swagger-ui.html`
+Step-by-step setup: `docs/runbooks/getting-started-aws.md`
 
 ## Documentation
 
-- Runbook: `docs/runbooks/local-dev.md`
-- API: `docs/design/openapi.md`
-- Error handling: `docs/design/error-handling.md`
-- TraceId: `docs/design/observability-traceid.md`
-- Auth/RBAC: `docs/design/auth.md`
-- Frontend auth: `docs/design/frontend-auth.md`
-- Frontend data: `docs/design/frontend-data.md`
-- UI pages: `docs/design/ui-pages.md`
-- Multi-tenancy: `docs/design/multi-tenancy.md`
+- Local dev: `docs/runbooks/local-dev.md`
+- CI/CD: `docs/runbooks/ci-cd.md`
+- AWS setup: `docs/runbooks/getting-started-aws.md`
+- Terraform operations: `docs/runbooks/terraform.md`
+- OpenAPI runtime endpoints: `docs/runbooks/openapi.md`
 - Architecture: `docs/design/architecture.md`
+- Auth/RBAC: `docs/design/auth.md`
+- Multi-tenancy: `docs/design/multi-tenancy.md`
+- Projects: `docs/design/projects.md`
+- Tickets: `docs/design/tickets.md`
+- Attachments: `docs/design/attachments.md`
+- Comments: `docs/design/comments.md`
+- UI pages: `docs/design/ui-pages.md`
+- Error handling: `docs/design/error-handling.md`
+- Trace ID and observability: `docs/design/observability-traceid.md`
 - ERD: `docs/design/full_ERD.md`
 - ADRs: `docs/adr/`
 
-## Milestones (Summary)
+## Milestones
 
 - Day 0: Repo bootstrap (docs, templates, base structure)
 - Day 1: Local dev loop + DB + Flyway baseline
@@ -111,39 +108,30 @@ terraform init && terraform apply
 - Day 7: Tickets CRUD + pagination/filter/sort + status flow
 - Day 8: Comments + attachments (S3 presigned) + tests/docs
 - Day 9: Frontend pages + Cognito login + React Query data layer
-- Day 10: AWS Infrastructure (Terraform) + Production Deployment
-- Day 11: User Invitation Flow (Lambda Triggers + Email)
-- Day 12: Frontend Polish (Toasts, Error Boundary, Loading States)
-- Day 13: Engineering Excellence (coverage + CI/CD hardening)
-- Day 14: Notifications SSE, audit feed, “My tickets” filter, avatars polishing
-- Day 15: Deletion strategy (trash UX, member read-only), token refresh flow, Cognito pre-token Lambda DB-connection fix
+- Day 10: AWS infrastructure (Terraform) and production deployment
+- Day 11: Invitation flow and onboarding integration
+- Day 12: Frontend polish and error/UX improvements
+- Day 13: Test/coverage and CI/CD hardening
+- Day 14: Notifications SSE, audit feed, "My Tickets", avatars/creator UX
+- Day 15: Deletion strategy, trash/read-only behavior, token refresh flow, Lambda DB-connection fix
 
-## Tests
+Work logs: `docs/work_logs/`
+
+## Testing
+
+Backend (Windows):
 
 ```bash
-# Windows
 .\mvnw.cmd test
-.\mvnw.cmd verify -DrunTestcontainers=true  # Generates JaCoCo coverage with Testcontainers
+.\mvnw.cmd verify -DrunTestcontainers=true
 ```
 
-Frontend (Vitest):
+Frontend:
 
 ```bash
 cd frontend
-npm run test                 # Run unit/component tests
-npm run test -- --coverage   # With coverage
+npm run lint
+npm run test
+npm run test -- --coverage
+npm run build
 ```
-
-**Current Coverage (latest):**
-- Backend: run `.\mvnw.cmd verify -DrunTestcontainers=true` (JaCoCo)
-- Frontend: run `npm run test -- --coverage` (Vitest + RTL)
-
-Optional Testcontainers (Docker required):
-
-```bash
-.\mvnw.cmd test -Dtest=OrgMembersTcIntegrationTest -DrunTestcontainers=true
-.\mvnw.cmd test -Dtest=TicketsTcIntegrationTest -DrunTestcontainers=true
-.\mvnw.cmd test -Dtest=TicketCommentsTcIntegrationTest -DrunTestcontainers=true
-.\mvnw.cmd test -Dtest=TicketAttachmentsTcIntegrationTest -DrunTestcontainers=true
-```
-

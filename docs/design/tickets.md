@@ -5,21 +5,6 @@
 Tickets represent work items within a project. All access is tenant-scoped by `orgId`
 from `TenantContext`.
 
-## C4 Context
-
-```mermaid
-C4Context
-title tickets-module
-Person(user, "User")
-System(be, "Backend")
-System_Ext(cognito, "AWS Cognito")
-SystemDb(db, "Postgres")
-Rel(user, cognito, "Login")
-Rel(user, be, "Manage tickets")
-Rel(be, cognito, "Validate JWT + org_id")
-Rel(be, db, "Read/write tickets")
-```
-
 ## Sequence
 
 ```mermaid

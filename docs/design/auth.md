@@ -33,23 +33,6 @@ app:
     org-claim: ${ORG_CLAIM:custom:org_id}
 ```
 
-## Mermaid
-
-### C4 Context
-
-```mermaid
-C4Context
-title jira-lite auth context
-Person(user, "User")
-System(fe, "Frontend")
-System(be, "Backend (Resource Server)")
-System_Ext(cognito, "AWS Cognito")
-Rel(user, fe, "Login")
-Rel(fe, cognito, "Authenticate")
-Rel(fe, be, "Call APIs with JWT")
-Rel(be, cognito, "Validate JWT via issuer/JWKS")
-```
-
 ### Sequence
 
 ```mermaid
@@ -78,4 +61,37 @@ TC-->>API: Proceed to controller/service
 API-->>TC: Return response
 TC->>TC: finally TenantContextHolder.clear()
 TC-->>FE: HTTP response
+```
+
+---
+
+## Frontend Integration (React + Cognito)
+
+The frontend application uses **AWS Cognito Hosted UI** with **Authorization Code Flow + PKCE** for secure authentication.
+
+### Environment Variables
+
+- `VITE_COGNITO_DOMAIN`: The Cognito domain prefix.
+- `VITE_COGNITO_CLIENT_ID`: The User Pool App Client ID.
+- `VITE_COGNITO_REDIRECT_URI`: Callback URL after login (e.g., `http://localhost:5173`).
+- `VITE_COGNITO_LOGOUT_URI`: URL to redirect to after logout.
+
+### Login Flow (PKCE)
+
+```mermaid
+sequenceDiagram
+autonumber
+actor User
+participant FE as Frontend
+participant Cog as Cognito
+participant API as Backend
+
+User->>FE: Click Login
+FE->>Cog: Redirect to Hosted UI (PKCE Challenge)
+Cog-->>FE: Redirect back with Auth Code
+FE->>Cog: Exchange Code for Tokens (Verifier)
+Cog-->>FE: Returns { access_token, id_token }
+FE->>FE: Store tokens in Memory/LocalStorage
+FE->>API: API Request (Authorization: Bearer token)
+API-->>FE: 200 OK
 ```

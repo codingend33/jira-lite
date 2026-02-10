@@ -5,22 +5,6 @@
 Attachments use S3 presigned URLs for upload and download. The backend stores
 metadata and validates tenant ownership.
 
-## C4 Context
-
-```mermaid
-C4Context
-title ticket-attachments
-Person(user, "User")
-System(be, "Backend")
-System_Ext(cognito, "AWS Cognito")
-System_Ext(s3, "AWS S3")
-SystemDb(db, "Postgres")
-Rel(user, cognito, "Login")
-Rel(user, be, "Request presigned URLs")
-Rel(be, s3, "Presign upload/download")
-Rel(be, db, "Store attachment metadata")
-```
-
 ## Sequence
 
 ```mermaid

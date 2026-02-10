@@ -1,250 +1,157 @@
-# CI/CD Pipeline Guide
+# CI/CD Runbook
 
-This guide covers GitHub Actions CI/CD pipeline usage and troubleshooting.
+This document describes the current behavior of:
 
-## Pipeline Overview
+- `.github/workflows/backend.yml`
+- `.github/workflows/frontend.yml`
 
-### Backend Pipeline (`.github/workflows/backend.yml`)
+## What Runs and When
 
-**Trigger**: Push to `main` branch with changes in `backend/**`
+Both workflows are triggered by:
 
-**Steps**:
-1. Test (Maven)
-2. Build JAR
-3. Build Docker image
-4. Push to ECR
-5. SSH to EC2 and deploy
+- `pull_request` to `main`
+- `push` to `main`
+- `workflow_dispatch`
 
-**Duration**: ~5-8 minutes
+There is no `paths` filter in either workflow. Any PR to `main` can trigger both workflows.
 
-### Frontend Pipeline (`.github/workflows/frontend.yml`)
+## Backend Workflow (`backend.yml`)
 
-**Trigger**: Push to `main` branch with changes in `frontend/**`
+Jobs:
 
-**Steps**:
-1. Build (Vite)
-2. Sync to S3
-3. Invalidate CloudFront cache
+1. `Test`
+   - Runs on PR and push.
+   - Runs `./mvnw test` in `backend/`.
+   - Uploads Surefire reports.
 
-**Duration**: ~3-5 minutes
+2. `Build and Deploy`
+   - Runs only on `push` to `main`.
+   - Condition: `github.ref == 'refs/heads/main' && github.event_name == 'push'`.
+   - Builds image, pushes to ECR, deploys to EC2, checks `http://localhost:8080/api/health`.
 
-## Manual Triggering
+## Frontend Workflow (`frontend.yml`)
 
-Both pipelines support manual dispatch:
+Job:
 
-1. Go to GitHub Actions tab
-2. Select workflow (Backend CI/CD or Frontend CI/CD)
-3. Click "Run workflow"
-4. Select branch and run
+1. `Build and Deploy`
+   - Always runs install, lint, test, build on PR and push.
+   - Deploy steps (AWS auth, S3 sync, CloudFront invalidation) run only on `push` to `main`.
 
-## Monitoring Deployments
+Result:
 
-### GitHub Actions UI
+- PR: CI checks only, no deployment.
+- Merge to `main`: CI runs again on the merge commit, then deployment runs.
 
-- **Summary**: View deployment summary with URLs
-- **Logs**: Click on each step to view detailed logs
-- **Artifacts**: Download test reports if tests fail
+## Branch Protection (Recommended)
 
-### Health Check
+For PR merge gates, require:
 
-Backend deployment includes automatic health check:
+- Backend `Test`
+- Frontend `Build and Deploy`
+
+Do not require backend `Build and Deploy` as a PR check, because it is main-push only.
+
+## Typical Flow
+
+1. Open PR to `main`.
+2. Wait for required checks:
+   - Backend `Test`
+   - Frontend `Build and Deploy`
+3. Merge PR.
+4. On `push main`, deployment jobs execute automatically.
+
+## Manual Trigger
+
+Use `workflow_dispatch` when needed:
+
+1. Open GitHub `Actions`.
+2. Select workflow.
+3. Click `Run workflow`.
+4. Choose branch and run.
+
+## Secrets and Variables
+
+Secrets:
+
+- `AWS_ROLE_TO_ASSUME`
+- `EC2_SSH_KEY` (backend deploy)
+
+Repository Variables:
+
+- `AWS_REGION`
+- `ECR_REPOSITORY`
+- `EC2_HOST`
+- `EC2_USER` (optional, default `ec2-user`)
+- `FRONTEND_BUCKET`
+- `CF_DIST_ID`
+- `VITE_API_BASE_URL`
+- `VITE_COGNITO_DOMAIN`
+- `VITE_COGNITO_CLIENT_ID`
+- `VITE_COGNITO_REDIRECT_URI`
+- `VITE_COGNITO_LOGOUT_URI`
+- `VITE_COGNITO_SCOPE` (optional)
+
+## Troubleshooting
+
+### PR shows "Expected - Waiting for status to be reported"
+
+Checks:
+
+1. Branch protection check names exactly match workflow job names.
+2. Required checks come from active workflows in this repository.
+3. Push a new commit after workflow or branch-protection changes.
+
+Quick retrigger:
 
 ```bash
-curl http://<EC2_IP>:8080/health
+git commit --allow-empty -m "chore: retrigger ci"
+git push
 ```
 
-Expected response: `{"status":"UP"}`
+### Backend deployment fails
 
-### CloudFront Status
-
-Check CloudFront invalidation progress:
+On EC2:
 
 ```bash
-aws cloudfront list-invalidations --distribution-id <CF_DIST_ID>
-```
-
-## Common Issues
-
-### 1. ECR Push Failed - Unauthorized
-
-**Symptom**: `denied: Your authorization token has expired`
-
-**Cause**: OIDC role doesn't have ECR permissions
-
-**Fix**:
-```bash
-# Verify OIDC trust policy
-aws iam get-role --role-name jira-lite-prod-github-actions-role
-
-# Check ECR policy attached
-aws iam list-role-policies --role-name jira-lite-prod-github-actions-role
-```
-
-### 2. SSH Connection Failed
-
-**Symptom**: `Permission denied (publickey)`
-
-**Causes**:
-- Wrong SSH key in GitHub Secrets
-- Security group blocking port 22
-- EC2 instance not running
-
-**Fix**:
-```bash
-# Test SSH manually
-ssh -i your-key.pem ec2-user@<EC2_IP>
-
-# Check security group allows your IP
-aws ec2 describe-security-groups --group-ids <SG_ID>
-
-# Verify EC2 status
-aws ec2 describe-instances --instance-ids <INSTANCE_ID>
-```
-
-### 3. EC2 Deployment Health Check Failed
-
-**Symptom**: `Health check failed!` in deployment logs
-
-**Causes**:
-- Application failed to start
-- Port 8080 not listening
-- Database connection failed
-
-**Debug**:
-```bash
-# SSH to EC2
-ssh -i your-key.pem ec2-user@<EC2_IP>
-
-# Check container logs
-docker logs jira-backend
-
-# Check container status
 docker ps -a
-
-# Test health endpoint locally
-curl http://localhost:8080/health
-
-# Check database connectivity
-docker exec jira-backend nc -zv <RDS_ENDPOINT> 5432
+docker logs jira-backend --tail 200
+cat /home/ec2-user/.env
+curl -f http://localhost:8080/api/health
 ```
 
-### 4. S3 Sync Failed - Access Denied
+### Frontend deploy succeeds but old UI still appears
 
-**Symptom**: `AccessDenied` when syncing to S3
+Check CloudFront invalidation:
 
-**Cause**: OIDC role missing S3 permissions
-
-**Fix**:
 ```bash
-# Check S3 policy
-aws iam get-role-policy \
-  --role-name jira-lite-prod-github-actions-role \
-  --policy-name s3-sync
-```
-
-### 5. CloudFront Invalidation Failed
-
-**Symptom**: `InvalidationBatchAlreadyExists` or timeout
-
-**Cause**: Previous invalidation still in progress
-
-**Fix**:
-```bash
-# List invalidations
 aws cloudfront list-invalidations --distribution-id <CF_DIST_ID>
-
-# Wait for completion (max 15 minutes)
-aws cloudfront wait invalidation-completed \
-  --distribution-id <CF_DIST_ID> \
-  --id <INVALIDATION_ID>
 ```
 
-### 6. Frontend CORS Errors
+### OIDC auth errors in GitHub Actions
 
-**Symptom**: Browser console shows CORS errors when accessing API
-
-**Cause**: API URL mismatch or Cognito redirect URI misconfigured
-
-**Fix**:
-1. Verify `VITE_API_BASE_URL` points to correct EC2 IP
-2. Check backend CORS configuration in `SecurityConfig.java`
-3. Verify Cognito redirect URIs include CloudFront domain
-
-### 7. Docker Image Too Large
-
-**Symptom**: ECR push timeout or slow deployment
-
-**Optimization**:
-```dockerfile
-# Use multi-stage build
-FROM eclipse-temurin:17-jdk-alpine AS build
-# ... build steps
-
-FROM eclipse-temurin:17-jre-alpine
-# Only copy JAR, not build dependencies
-```
-
-## Rollback Procedure
-
-### Backend Rollback
+Validate role trust and permissions:
 
 ```bash
-# SSH to EC2
-ssh -i your-key.pem ec2-user@<EC2_IP>
-
-# Find previous image tag
-aws ecr describe-images \
-  --repository-name jira-lite-backend \
-  --query 'sort_by(imageDetails, &imagePushedAt)[-5:]'
-
-# Pull previous version
-docker pull <ECR_URL>:<PREVIOUS_SHA>
-
-# Stop current container
-docker stop jira-backend
-docker rm jira-backend
-
-# Run previous version
-docker run -d \
-  --name jira-backend \
-  --restart unless-stopped \
-  -p 8080:8080 \
-  --env-file ~/.env \
-  <ECR_URL>:<PREVIOUS_SHA>
+aws iam get-role --role-name <github-actions-role>
+aws iam list-attached-role-policies --role-name <github-actions-role>
 ```
 
-### Frontend Rollback
+## Local Commands to Match CI
+
+Frontend:
 
 ```bash
-# Restore from S3 versioning (if enabled)
-aws s3api list-object-versions \
-  --bucket <FRONTEND_BUCKET> \
-  --prefix index.html
-
-# Or redeploy from previous commit
-git checkout <PREVIOUS_COMMIT>
 cd frontend
-npm ci && npm run build
-aws s3 sync dist/ s3://<FRONTEND_BUCKET> --delete
-aws cloudfront create-invalidation --distribution-id <CF_DIST_ID> --paths "/*"
+npm ci
+npm run lint
+npm run test
+npm run build
 ```
 
-## Performance Tips
+Backend:
 
-### Speed Up Docker Builds
-
-- Use Docker layer caching in GitHub Actions
-- Optimize Dockerfile layer order (least → most frequently changed)
-
-### Reduce S3 Sync Time
-
-- Use `--size-only` flag for faster comparison
-- Only invalidate changed paths in CloudFront
-
-## Security Best Practices
-
-- ✅ Never commit SSH keys or AWS credentials
-- ✅ Rotate EC2 SSH keys regularly
-- ✅ Review CloudTrail logs for OIDC role usage
-- ✅ Enable branch protection on `main`
-- ✅ Require PR reviews before merge
+```bash
+cd backend
+./mvnw test
+./mvnw clean package -DskipTests
+```
